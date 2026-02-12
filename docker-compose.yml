@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  admin-bot:
+    build: .
+    container_name: v2ray-admin-bot
+    environment:
+      DATABASE_URL: postgresql://v2raybot:v2raypass123@your-main-server-ip:5432/v2ray_bot_db
+      ADMIN_BOT_TOKEN: ${ADMIN_BOT_TOKEN}
+      ADMIN_BOT_PASSWORD: ${ADMIN_BOT_PASSWORD}
+    restart: unless-stopped
+    network_mode: host  # Simplest way to connect to host database
+    # OR if database is on another server:
+    # extra_hosts:
+    #   - "host.docker.internal:host-gateway"
