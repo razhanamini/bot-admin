@@ -14,39 +14,13 @@ export class AdminMessages {
     return `\`${this.escapeMarkdown(text)}\``;
   }
 
-  // ============ AUTHENTICATION ============
-  static welcome(): string {
-    return `👋 *Welcome to Admin Bot*
+  // ============ MAIN MENU ============
+  static mainMenu(): string {
+    return `📋 *Admin Panel*
 
-This bot is designed to manage V2Ray services and servers.
+Welcome to the V2Ray Admin Bot.
 
-Please click the ${this.bold('Login')} button to continue.`;
-  }
-
-  static enterPassword(): string {
-    return `🔐 *Please enter the admin password:*`;
-  }
-
-  static invalidPassword(): string {
-    return `❌ *Invalid password*
-
-Please try again or contact the system administrator.`;
-  }
-
-  static loginSuccess(): string {
-    return `✅ *Login successful*
-
-Welcome to the admin panel.`;
-  }
-
-  static authRequired(): string {
-    return `🔒 *Authentication Required*
-
-Please use /start to login first.`;
-  }
-
-  static loggedOut(): string {
-    return `👋 *Logged out successfully*`;
+Select an option below:`;
   }
 
   static cancelled(): string {
@@ -55,13 +29,6 @@ Please use /start to login first.`;
 
   static actionCancelled(): string {
     return `❌ Action cancelled.`;
-  }
-
-  // ============ MAIN MENU ============
-  static mainMenu(): string {
-    return `📋 *Main Menu*
-
-Please select an option:`;
   }
 
   // ============ SERVICES CRUD ============

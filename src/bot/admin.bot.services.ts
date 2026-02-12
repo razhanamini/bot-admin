@@ -7,7 +7,6 @@ dotenv.config();
 
 // Session state for multi-step operations
 interface SessionState {
-  authenticated: boolean;
   currentAction: string | null;
   currentItem: any;
   step: number;
@@ -26,12 +25,12 @@ class AdminBotService {
     this.bot = new Telegraf(token);
     this.setupCommands();
     this.setupHandlers();
+    this.setupCallbacks();
   }
 
   private getSession(userId: number): SessionState {
     if (!this.sessions.has(userId)) {
       this.sessions.set(userId, {
-        authenticated: false,
         currentAction: null,
         currentItem: null,
         step: 0
@@ -44,31 +43,11 @@ class AdminBotService {
     this.sessions.delete(userId);
   }
 
-  private async requireAuth(ctx: Context, next: () => Promise<void>) {
-    const userId = ctx.from!.id;
-    const session = this.getSession(userId);
-    
-    if (!session.authenticated) {
-      await ctx.reply(AdminMessages.authRequired());
-      return;
-    }
-    
-    await next();
-  }
-
   private setupCommands() {
-    // Public commands
     this.bot.command('start', async (ctx) => {
       const userId = ctx.from!.id;
       this.clearSession(userId);
-      await ctx.reply(AdminMessages.welcome(), {
-        reply_markup: {
-          keyboard: [
-            ['🔑 Login']
-          ],
-          resize_keyboard: true
-        }
-      });
+      await this.showMainMenu(ctx);
     });
 
     this.bot.command('cancel', async (ctx) => {
@@ -77,165 +56,140 @@ class AdminBotService {
       await ctx.reply(AdminMessages.cancelled(), {
         reply_markup: {
           keyboard: [
-            ['🔑 Login']
+            ['📦 Services', '🖥️ Servers'],
+            ['📊 Statistics', '👥 Users'],
+            ['💰 Payments']
           ],
           resize_keyboard: true
         }
       });
     });
 
-    // Authenticated commands (with middleware)
-    this.bot.command('menu', this.requireAuth.bind(this), async (ctx) => {
+    this.bot.command('menu', async (ctx) => {
       await this.showMainMenu(ctx);
     });
 
-    this.bot.command('services', this.requireAuth.bind(this), async (ctx) => {
+    this.bot.command('services', async (ctx) => {
       await this.showServicesMenu(ctx);
     });
 
-    this.bot.command('servers', this.requireAuth.bind(this), async (ctx) => {
+    this.bot.command('servers', async (ctx) => {
       await this.showServersMenu(ctx);
     });
 
-    this.bot.command('stats', this.requireAuth.bind(this), async (ctx) => {
+    this.bot.command('stats', async (ctx) => {
       await this.showStats(ctx);
     });
 
-    this.bot.command('users', this.requireAuth.bind(this), async (ctx) => {
+    this.bot.command('users', async (ctx) => {
       await this.showUsers(ctx);
     });
 
-    this.bot.command('payments', this.requireAuth.bind(this), async (ctx) => {
+    this.bot.command('payments', async (ctx) => {
       await this.showPayments(ctx);
     });
   }
 
   private setupHandlers() {
-    // Text handlers
-    this.bot.hears('🔑 Login', async (ctx) => {
-      await ctx.reply(AdminMessages.enterPassword());
-    });
-
-    this.bot.hears('📦 Services', this.requireAuth.bind(this), async (ctx) => {
+    // Main menu buttons
+    this.bot.hears('📦 Services', async (ctx) => {
       await this.showServicesMenu(ctx);
     });
 
-    this.bot.hears('🖥️ Servers', this.requireAuth.bind(this), async (ctx) => {
+    this.bot.hears('🖥️ Servers', async (ctx) => {
       await this.showServersMenu(ctx);
     });
 
-    this.bot.hears('📊 Statistics', this.requireAuth.bind(this), async (ctx) => {
+    this.bot.hears('📊 Statistics', async (ctx) => {
       await this.showStats(ctx);
     });
 
-    this.bot.hears('👥 Users', this.requireAuth.bind(this), async (ctx) => {
+    this.bot.hears('👥 Users', async (ctx) => {
       await this.showUsers(ctx);
     });
 
-    this.bot.hears('💰 Payments', this.requireAuth.bind(this), async (ctx) => {
+    this.bot.hears('💰 Payments', async (ctx) => {
       await this.showPayments(ctx);
     });
 
-    this.bot.hears('🔙 Main Menu', this.requireAuth.bind(this), async (ctx) => {
+    this.bot.hears('🔙 Main Menu', async (ctx) => {
       await this.showMainMenu(ctx);
     });
 
-    this.bot.hears('🔚 Logout', this.requireAuth.bind(this), async (ctx) => {
-      const userId = ctx.from!.id;
-      this.clearSession(userId);
-      await ctx.reply(AdminMessages.loggedOut(), {
-        reply_markup: {
-          keyboard: [
-            ['🔑 Login']
-          ],
-          resize_keyboard: true
-        }
-      });
-    });
-
-    // Password handler
+    // Handle multi-step operations
     this.bot.on('text', async (ctx) => {
       const userId = ctx.from!.id;
       const session = this.getSession(userId);
       const text = ctx.message.text;
 
-      // If not authenticated and not a command
-      if (!session.authenticated && !text.startsWith('/')) {
-        const isValid = await db.verifyAdminPassword(text);
-        
-        if (isValid) {
-          session.authenticated = true;
-          await ctx.reply(AdminMessages.loginSuccess(), {
-            reply_markup: {
-              keyboard: [
-                ['📦 Services', '🖥️ Servers'],
-                ['📊 Statistics', '👥 Users'],
-                ['💰 Payments', '🔚 Logout']
-              ],
-              resize_keyboard: true
-            }
-          });
-          await this.showMainMenu(ctx);
-        } else {
-          await ctx.reply(AdminMessages.invalidPassword());
-        }
+      // Skip if it's a command or menu button
+      if (text.startsWith('/') || 
+          text === '📦 Services' || 
+          text === '🖥️ Servers' || 
+          text === '📊 Statistics' || 
+          text === '👥 Users' || 
+          text === '💰 Payments' || 
+          text === '🔙 Main Menu') {
         return;
       }
 
       // Handle multi-step operations
-      if (session.authenticated && session.currentAction) {
-        await this.handleMultiStep(ctx, session);
+      if (session.currentAction) {
+        await this.handleMultiStep(ctx, session, text);
       }
     });
+  }
 
-    // Callback handlers for inline keyboards
-    this.bot.action(/^services_list$/, this.requireAuth.bind(this), async (ctx) => {
+  private setupCallbacks() {
+    // Services
+    this.bot.action(/^services_list$/, async (ctx) => {
       await this.listServices(ctx);
     });
 
-    this.bot.action(/^service_create$/, this.requireAuth.bind(this), async (ctx) => {
+    this.bot.action(/^service_create$/, async (ctx) => {
       await this.startServiceCreate(ctx);
     });
 
-    this.bot.action(/^service_edit_(\d+)$/, this.requireAuth.bind(this), async (ctx) => {
+    this.bot.action(/^service_edit_(\d+)$/, async (ctx) => {
       const serviceId = parseInt(ctx.match[1]);
       await this.startServiceEdit(ctx, serviceId);
     });
 
-    this.bot.action(/^service_delete_(\d+)$/, this.requireAuth.bind(this), async (ctx) => {
+    this.bot.action(/^service_delete_(\d+)$/, async (ctx) => {
       const serviceId = parseInt(ctx.match[1]);
       await this.confirmServiceDelete(ctx, serviceId);
     });
 
-    this.bot.action(/^confirm_service_delete_(\d+)$/, this.requireAuth.bind(this), async (ctx) => {
+    this.bot.action(/^confirm_service_delete_(\d+)$/, async (ctx) => {
       const serviceId = parseInt(ctx.match[1]);
       await this.deleteService(ctx, serviceId);
     });
 
-    this.bot.action(/^servers_list$/, this.requireAuth.bind(this), async (ctx) => {
+    // Servers
+    this.bot.action(/^servers_list$/, async (ctx) => {
       await this.listServers(ctx);
     });
 
-    this.bot.action(/^server_create$/, this.requireAuth.bind(this), async (ctx) => {
+    this.bot.action(/^server_create$/, async (ctx) => {
       await this.startServerCreate(ctx);
     });
 
-    this.bot.action(/^server_edit_(\d+)$/, this.requireAuth.bind(this), async (ctx) => {
+    this.bot.action(/^server_edit_(\d+)$/, async (ctx) => {
       const serverId = parseInt(ctx.match[1]);
       await this.startServerEdit(ctx, serverId);
     });
 
-    this.bot.action(/^server_delete_(\d+)$/, this.requireAuth.bind(this), async (ctx) => {
+    this.bot.action(/^server_delete_(\d+)$/, async (ctx) => {
       const serverId = parseInt(ctx.match[1]);
       await this.confirmServerDelete(ctx, serverId);
     });
 
-    this.bot.action(/^confirm_server_delete_(\d+)$/, this.requireAuth.bind(this), async (ctx) => {
+    this.bot.action(/^confirm_server_delete_(\d+)$/, async (ctx) => {
       const serverId = parseInt(ctx.match[1]);
       await this.deleteServer(ctx, serverId);
     });
 
-    this.bot.action(/^cancel_action$/, this.requireAuth.bind(this), async (ctx) => {
+    this.bot.action(/^cancel_action$/, async (ctx) => {
       const userId = ctx.from!.id;
       const session = this.getSession(userId);
       session.currentAction = null;
@@ -246,19 +200,52 @@ class AdminBotService {
         reply_markup: { inline_keyboard: [] }
       });
     });
+
+    this.bot.action(/^back_to_main$/, async (ctx) => {
+      await ctx.answerCbQuery();
+      await ctx.deleteMessage();
+      await this.showMainMenu(ctx);
+    });
+
+    this.bot.action(/^back_to_services$/, async (ctx) => {
+      await ctx.answerCbQuery();
+      await ctx.deleteMessage();
+      await this.showServicesMenu(ctx);
+    });
+
+    this.bot.action(/^back_to_servers$/, async (ctx) => {
+      await ctx.answerCbQuery();
+      await ctx.deleteMessage();
+      await this.showServersMenu(ctx);
+    });
+
+    this.bot.action(/^refresh_stats$/, async (ctx) => {
+      await ctx.answerCbQuery('🔄 Refreshing...');
+      await ctx.deleteMessage();
+      await this.showStats(ctx);
+    });
+
+    this.bot.action(/^refresh_users$/, async (ctx) => {
+      await ctx.answerCbQuery('🔄 Refreshing...');
+      await ctx.deleteMessage();
+      await this.showUsers(ctx);
+    });
+
+    this.bot.action(/^refresh_payments$/, async (ctx) => {
+      await ctx.answerCbQuery('🔄 Refreshing...');
+      await ctx.deleteMessage();
+      await this.showPayments(ctx);
+    });
   }
 
   // ================ MAIN MENU ================
   private async showMainMenu(ctx: Context) {
-    const userId = ctx.from!.id;
-    this.clearSession(userId);
-    
     await ctx.reply(AdminMessages.mainMenu(), {
       reply_markup: {
         keyboard: [
           ['📦 Services', '🖥️ Servers'],
           ['📊 Statistics', '👥 Users'],
-          ['💰 Payments', '🔚 Logout']
+          ['💰 Payments']
         ],
         resize_keyboard: true
       }
@@ -286,18 +273,18 @@ class AdminBotService {
         reply_markup: {
           inline_keyboard: [
             [Markup.button.callback('➕ Create Service', 'service_create')],
-            [Markup.button.callback('🔙 Back', 'services_list_back')]
+            [Markup.button.callback('🔙 Back', 'back_to_services')]
           ]
         }
       });
       return;
     }
 
-    let message = AdminMessages.servicesList(services);
+    const message = AdminMessages.servicesList(services);
     
-    const buttons = services.slice(0, 5).map(service => [
+    const buttons = services.slice(0, 5).map((service: any) => [
       Markup.button.callback(
-        `✏️ ${service.name} (${service.price} IRR)`,
+        `✏️ ${service.name} (${service.price.toLocaleString()} IRR)`,
         `service_edit_${service.id}`
       ),
       Markup.button.callback('❌', `service_delete_${service.id}`)
@@ -410,18 +397,18 @@ class AdminBotService {
         reply_markup: {
           inline_keyboard: [
             [Markup.button.callback('➕ Add Server', 'server_create')],
-            [Markup.button.callback('🔙 Back', 'servers_list_back')]
+            [Markup.button.callback('🔙 Back', 'back_to_servers')]
           ]
         }
       });
       return;
     }
 
-    let message = AdminMessages.serversList(servers);
+    const message = AdminMessages.serversList(servers);
     
-    const buttons = servers.slice(0, 5).map(server => [
+    const buttons = servers.slice(0, 5).map((server: any) => [
       Markup.button.callback(
-        `✏️ ${server.name} (${server.location})`,
+        `✏️ ${server.name} (${server.location || 'Unknown'})`,
         `server_edit_${server.id}`
       ),
       Markup.button.callback('❌', `server_delete_${server.id}`)
@@ -514,10 +501,7 @@ class AdminBotService {
   }
 
   // ================ MULTI-STEP HANDLERS ================
-  private async handleMultiStep(ctx: Context, session: SessionState) {
-    const text = (ctx.message as any).text;
-    const userId = ctx.from!.id;
-
+  private async handleMultiStep(ctx: Context, session: SessionState, text: string) {
     if (session.currentAction === 'create_service') {
       await this.handleCreateServiceStep(ctx, session, text);
     } else if (session.currentAction === 'create_server') {
@@ -526,8 +510,6 @@ class AdminBotService {
   }
 
   private async handleCreateServiceStep(ctx: Context, session: SessionState, text: string) {
-    const userId = ctx.from!.id;
-
     switch (session.step) {
       case 1: // Name
         session.currentItem.name = text;
@@ -542,7 +524,7 @@ class AdminBotService {
       case 3: // Price
         const price = parseFloat(text);
         if (isNaN(price) || price < 0) {
-          await ctx.reply(AdminMessages.invalidInput('قیمت'));
+          await ctx.reply(AdminMessages.invalidInput('price'));
           return;
         }
         session.currentItem.price = price;
@@ -552,7 +534,7 @@ class AdminBotService {
       case 4: // Duration
         const duration = parseInt(text);
         if (isNaN(duration) || duration <= 0) {
-          await ctx.reply(AdminMessages.invalidInput('مدت زمان'));
+          await ctx.reply(AdminMessages.invalidInput('duration'));
           return;
         }
         session.currentItem.duration_days = duration;
@@ -562,7 +544,7 @@ class AdminBotService {
       case 5: // Data Limit
         const dataLimit = parseFloat(text);
         if (isNaN(dataLimit) || dataLimit < 0) {
-          await ctx.reply(AdminMessages.invalidInput('محدودیت حجم'));
+          await ctx.reply(AdminMessages.invalidInput('data limit'));
           return;
         }
         session.currentItem.data_limit_gb = dataLimit || null;
@@ -591,8 +573,6 @@ class AdminBotService {
   }
 
   private async handleCreateServerStep(ctx: Context, session: SessionState, text: string) {
-    const userId = ctx.from!.id;
-
     switch (session.step) {
       case 1: // Name
         session.currentItem.name = text;
@@ -731,8 +711,9 @@ class AdminBotService {
 
   launch() {
     this.bot.launch();
-    console.log('🤖 Admin Bot started successfully');
+    console.log('🤖 Admin Bot started successfully (no authentication)');
     
+    // Enable graceful stop
     process.once('SIGINT', () => this.bot.stop('SIGINT'));
     process.once('SIGTERM', () => this.bot.stop('SIGTERM'));
   }
