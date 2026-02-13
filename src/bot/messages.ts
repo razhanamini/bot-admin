@@ -264,7 +264,7 @@ Example: 8`;
     return `✅ *Server added successfully*
 
 ${this.bold('Name:')} ${this.escapeMarkdown(server.name)}
-${this.bold('IP:')} ${server.ip}
+${this.bold('IP:')} ${this.escapeMarkdown(server.ip)}
 ${this.bold('Location:')} ${server.location || 'Unknown'}
 ${this.bold('Capacity:')} ${server.current_users}/${server.max_users} users`;
   }
