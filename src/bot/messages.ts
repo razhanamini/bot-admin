@@ -278,8 +278,8 @@ ${this.bold('Capacity:')} ${server.current_users}/${server.max_users} users`;
 
 ${this.bold('🆔 ID:')} ${server.id}
 ${this.bold('📌 Name:')} ${this.escapeMarkdown(server.name)}
-${this.bold('🌐 Domain:')} ${server.domain}
-${this.bold('📍 IP:')} ${server.ip}
+${this.bold('🌐 Domain:')} ${this.escapeMarkdown(server.domain)}
+${this.bold('📍 IP:')} ${this.escapeMarkdown(server.ip)}
 ${this.bold('🔌 API Port:')} ${server.api_port}
 ${this.bold('🔌 Xray Port:')} ${server.xray_port}
 ${this.bold('📍 Location:')} ${server.location || 'Unknown'}
