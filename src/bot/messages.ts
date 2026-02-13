@@ -363,9 +363,9 @@ ${this.bold('📊 Users:')} ${server.current_users}/${server.max_users}
                     p.status === 'declined' ? '❌' : '⚪';
       
       message += `${index + 1}\\. ${status} ${this.bold(this.escapeMarkdown(username))}\n`;
-      message += `   💰 Amount: ${Math.round(p.amount).toLocaleString()} IRR\n`;
-      message += `   📋 Invoice: ${this.escapeMarkdown(p.invoice_number)}\n`;
-      message += `   📅 Date: ${new Date(p.created_at).toLocaleDateString()}\n\n`;
+      message += `   💰 Amount: ${Math.round(p.amount).toLocaleString() || 0} IRR\n`;
+      message += `   📋 Invoice: ${this.escapeMarkdown(p.invoice_number) || 0}\n`;
+      message += `   📅 Date: ${new Date(p.created_at).toLocaleDateString() || 0}\n\n`;
     });
     
     return message;
