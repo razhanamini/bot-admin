@@ -516,21 +516,36 @@ class DatabaseService {
     return parseInt(result.rows[0].count);
   }
 
+  // async getExpiringConfigs(days: number = 3): Promise<any[]> {
+  //   const result = await this.query(
+  //     `SELECT uc.*, u.username, u.telegram_id, s.name as server_name, sv.name as service_name
+  //      FROM user_configs uc
+  //      JOIN users u ON uc.user_id = u.id
+  //      LEFT JOIN servers s ON uc.server_id = s.id
+  //      LEFT JOIN services sv ON uc.service_id = sv.id
+  //      WHERE uc.status IN ('active', 'test')
+  //      AND uc.expires_at <= NOW() + INTERVAL '$1 days'
+  //      AND uc.expires_at > NOW()
+  //      ORDER BY uc.expires_at ASC`,
+  //     [days]
+  //   );
+  //   return result.rows;
+  // }
   async getExpiringConfigs(days: number = 3): Promise<any[]> {
-    const result = await this.query(
-      `SELECT uc.*, u.username, u.telegram_id, s.name as server_name, sv.name as service_name
-       FROM user_configs uc
-       JOIN users u ON uc.user_id = u.id
-       LEFT JOIN servers s ON uc.server_id = s.id
-       LEFT JOIN services sv ON uc.service_id = sv.id
-       WHERE uc.status IN ('active', 'test')
-       AND uc.expires_at <= NOW() + INTERVAL '$1 days'
-       AND uc.expires_at > NOW()
-       ORDER BY uc.expires_at ASC`,
-      [days]
-    );
-    return result.rows;
-  }
+  const result = await this.query(
+    `SELECT uc.*, u.username, u.telegram_id, s.name as server_name, sv.name as service_name
+     FROM user_configs uc
+     JOIN users u ON uc.user_id = u.id
+     LEFT JOIN servers s ON uc.server_id = s.id
+     LEFT JOIN services sv ON uc.service_id = sv.id
+     WHERE uc.status IN ('active', 'test')
+     AND uc.expires_at <= NOW() + $1::interval
+     AND uc.expires_at > NOW()
+     ORDER BY uc.expires_at ASC`,
+    [`${days} days`]  // Pass as interval string
+  );
+  return result.rows;
+}
 }
 
 export default new DatabaseService();
