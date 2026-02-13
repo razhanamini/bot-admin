@@ -52,7 +52,7 @@ Click the button below to create your first service.`;
       const dataLimit = s.data_limit_gb ? `${s.data_limit_gb} GB` : 'Unlimited';
       message += `${index + 1}\\. ${this.bold(this.escapeMarkdown(s.name))}\n`;
       message += `   🆔 ID: ${s.id}\n`;
-      message += `   💰 Price: ${this.escapeMarkdown(s.price.toLocaleString())} IRR\n`;
+      message += `   💰 Price: ${this.escapeMarkdown(s.price)} IRR\n`;
       message += `   ⏱️ Duration: ${s.duration_days} days\n`;
       message += `   💾 Data: ${this.escapeMarkdown(dataLimit)}\n`;
       message += `   📊 Status: ${status}\n`;
@@ -142,9 +142,9 @@ Are you sure you want to delete this service?
 
 ${this.bold('Name:')} ${this.escapeMarkdown(service.name)}
 ${this.bold('🆔 ID:')} ${service.id}
-${this.bold('💰 Price:')} ${service.price.toLocaleString()} IRR
+${this.bold('💰 Price:')} ${this.escapeMarkdown(service.price)} IRR
 
-⚠️ *Warning:* This action cannot be undone.`;
+⚠️ *Warning:* This action cannot be undone`;
   }
 
   // ============ SERVERS CRUD ============
@@ -170,7 +170,7 @@ Click the button below to add your first server.`;
       
       message += `${index + 1}\\. ${this.bold(this.escapeMarkdown(s.name))}\n`;
       message += `   🆔 ID: ${s.id}  📍 ${s.location || 'Unknown'}\n`;
-      message += `   🌐 ${s.domain}  ${s.ip}\n`;
+      message += `   🌐 ${this.escapeMarkdown(s.domain)}  ${this.escapeMarkdown(s.ip)}\n`;
       message += `   📊 Users: ${s.current_users}/${s.max_users}\n`;
       message += `   📌 Status: ${status}\n\n`;
     });
@@ -332,7 +332,7 @@ ${this.bold('📊 Users:')} ${server.current_users}/${server.max_users}
 
 📡 *Configs*
 • Active Configs: ${activeConfigs}
-• Expiring Soon (3 days): ${expiringCount}`;
+• Expiring Soon in 3 days: ${expiringCount}`;
   }
 
   static usersList(users: any[], stats: any): string {
