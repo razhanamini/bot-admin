@@ -328,7 +328,7 @@ ${this.bold('📊 Users:')} ${server.current_users}/${server.max_users}
 • Active Servers: ${serverStats.active_servers || 0}
 • Active Users: ${serverStats.total_users || 0}
 • Total Capacity: ${serverStats.total_capacity || 0}
-• Avg Utilization: ${serverStats.avg_utilization || 0}%
+• Avg Utilization: ${this.escapeMarkdown(serverStats.avg_utilization) || 0}%
 
 📡 *Configs*
 • Active Configs: ${activeConfigs}
@@ -354,7 +354,7 @@ ${this.bold('📊 Users:')} ${server.current_users}/${server.max_users}
   static paymentsList(payments: any[], stats: any): string {
     let message = `💰 *Recent Payments*\n\n`;
     message += `📊 *Stats:* Total: ${stats.total_payments || 0}  Today: ${stats.payments_today || 0}\n`;
-    message += `💵 Total Amount: ${stats.total_amount ? Math.round(stats.total_amount).toLocaleString() : 0} IRR\n\n`;
+    message += `💵 Total Amount: ${this.escapeMarkdown(stats.total_amount) ? this.escapeMarkdown(Math.round(stats.total_amount).toLocaleString()) : 0} IRR\n\n`;
     
     payments.forEach((p, index) => {
       const username = p.username ? `@${p.username}` : `User ${p.user_id}`;
@@ -364,7 +364,7 @@ ${this.bold('📊 Users:')} ${server.current_users}/${server.max_users}
       
       message += `${index + 1}\\. ${status} ${this.bold(this.escapeMarkdown(username))}\n`;
       message += `   💰 Amount: ${Math.round(p.amount).toLocaleString()} IRR\n`;
-      message += `   📋 Invoice: ${p.invoice_number}\n`;
+      message += `   📋 Invoice: ${this.escapeMarkdown(p.invoice_number)}\n`;
       message += `   📅 Date: ${new Date(p.created_at).toLocaleDateString()}\n\n`;
     });
     
