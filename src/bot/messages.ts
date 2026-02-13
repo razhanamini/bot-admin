@@ -126,9 +126,9 @@ ${this.bold('Data Limit:')} ${dataLimit}`;
 ${this.bold('🆔 ID:')} ${service.id}
 ${this.bold('📌 Name:')} ${this.escapeMarkdown(service.name)}
 ${this.bold('📝 Description:')} ${this.escapeMarkdown(service.description || 'None')}
-${this.bold('💰 Price:')} ${service.price.toLocaleString()} IRR
+${this.bold('💰 Price:')} ${this.escapeMarkdown(service.price)} IRR
 ${this.bold('⏱️ Duration:')} ${service.duration_days} days
-${this.bold('💾 Data Limit:')} ${dataLimit}
+${this.bold('💾 Data Limit:')} ${this.escapeMarkdown(dataLimit)}
 ${this.bold('📊 Status:')} ${status}
 ${this.bold('📌 Sort Order:')} ${service.sort_order || 0}
 
@@ -298,7 +298,7 @@ Are you sure you want to delete this server?
 
 ${this.bold('Name:')} ${this.escapeMarkdown(server.name)}
 ${this.bold('🆔 ID:')} ${server.id}
-${this.bold('📍 IP:')} ${server.ip}
+${this.bold('📍 IP:')} ${this.escapeMarkdown(server.ip)}
 ${this.bold('📊 Users:')} ${server.current_users}/${server.max_users}
 
 ⚠️ *Warning:* 
