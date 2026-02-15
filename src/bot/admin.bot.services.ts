@@ -1371,7 +1371,7 @@ class AdminBotService {
   }
 
   private async listGiftCodes(ctx: any) {
-    const giftCodes = await db.getGiftCodes();
+    const giftCodes = await db.getAllGiftCodes();
     
     if (giftCodes.length === 0) {
       await ctx.editMessageText('📭 *No gift codes found*\n\nClick the button below to create your first gift code.', {

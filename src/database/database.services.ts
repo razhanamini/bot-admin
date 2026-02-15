@@ -547,28 +547,22 @@ class DatabaseService {
   return result.rows;
 }
 
+// ================ GIFT CODES CRUD ================
 
-// In database.services.ts, add these methods:
-
-async getGiftCodes(onlyActive: boolean = false): Promise<any[]> {
+/**
+ * Get all gift codes with usage statistics
+ */
+async getAllGiftCodes(): Promise<any[]> {
   try {
-    let query = `
-      SELECT gc.*, 
-             u.username as created_by_username,
-             COUNT(gcu.id) as actual_uses,
-             COALESCE(SUM(gcu.amount_received), 0) as total_redeemed
-      FROM gift_codes gc
-      LEFT JOIN users u ON gc.created_by = u.id
-      LEFT JOIN gift_code_usages gcu ON gc.id = gcu.gift_code_id
-    `;
-    
-    if (onlyActive) {
-      query += ` WHERE gc.is_active = true AND (gc.expires_at IS NULL OR gc.expires_at > NOW()) AND gc.current_uses < gc.max_uses`;
-    }
-    
-    query += ` GROUP BY gc.id, u.username ORDER BY gc.created_at DESC`;
-    
-    const result = await this.query(query);
+    const result = await this.query(
+      `SELECT gc.*, 
+              COUNT(gcu.id) as times_used,
+              COALESCE(SUM(gcu.amount_received), 0) as total_redeemed
+       FROM gift_codes gc
+       LEFT JOIN gift_code_usages gcu ON gc.id = gcu.gift_code_id
+       GROUP BY gc.id
+       ORDER BY gc.created_at DESC`
+    );
     return result.rows;
   } catch (error) {
     console.error('Error getting gift codes:', error);
@@ -576,18 +570,43 @@ async getGiftCodes(onlyActive: boolean = false): Promise<any[]> {
   }
 }
 
+/**
+ * Get active gift codes only (for user display)
+ */
+async getActiveGiftCodes(): Promise<any[]> {
+  try {
+    const result = await this.query(
+      `SELECT gc.*, 
+              COUNT(gcu.id) as times_used,
+              COALESCE(SUM(gcu.amount_received), 0) as total_redeemed
+       FROM gift_codes gc
+       LEFT JOIN gift_code_usages gcu ON gc.id = gcu.gift_code_id
+       WHERE gc.is_active = true 
+         AND (gc.expires_at IS NULL OR gc.expires_at > NOW())
+         AND gc.current_uses < gc.max_uses
+       GROUP BY gc.id
+       ORDER BY gc.created_at DESC`
+    );
+    return result.rows;
+  } catch (error) {
+    console.error('Error getting active gift codes:', error);
+    return [];
+  }
+}
+
+/**
+ * Get gift code by ID
+ */
 async getGiftCodeById(id: number): Promise<any> {
   try {
     const result = await this.query(
       `SELECT gc.*, 
-              u.username as created_by_username,
-              COUNT(gcu.id) as actual_uses,
+              COUNT(gcu.id) as times_used,
               COALESCE(SUM(gcu.amount_received), 0) as total_redeemed
        FROM gift_codes gc
-       LEFT JOIN users u ON gc.created_by = u.id
        LEFT JOIN gift_code_usages gcu ON gc.id = gcu.gift_code_id
        WHERE gc.id = $1
-       GROUP BY gc.id, u.username`,
+       GROUP BY gc.id`,
       [id]
     );
     return result.rows[0] || null;
@@ -597,28 +616,38 @@ async getGiftCodeById(id: number): Promise<any> {
   }
 }
 
+/**
+ * Get gift code by code string
+ */
+async getGiftCodeByCode(code: string): Promise<any> {
+  try {
+    const result = await this.query(
+      `SELECT * FROM gift_codes WHERE code = $1`,
+      [code]
+    );
+    return result.rows[0] || null;
+  } catch (error) {
+    console.error('Error getting gift code by code:', error);
+    return null;
+  }
+}
+
+/**
+ * Create a new gift code
+ */
 async createGiftCode(data: {
   code: string;
   amount: number;
-  max_uses: number;
-  expires_at?: string;
-  created_by?: number;
-  min_balance_required?: number;
-  first_purchase_only?: boolean;
-  service_id?: number;
+  max_uses?: number;
+  expires_at?: string | null;
 }): Promise<any> {
   try {
+    const maxUses = data.max_uses || 1;
     const result = await this.query(
-      `INSERT INTO gift_codes (
-        code, amount, max_uses, expires_at, created_by, 
-        min_balance_required, first_purchase_only, service_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      RETURNING *`,
-      [
-        data.code, data.amount, data.max_uses, data.expires_at, 
-        data.created_by, data.min_balance_required || 0, 
-        data.first_purchase_only || false, data.service_id
-      ]
+      `INSERT INTO gift_codes (code, amount, max_uses, expires_at)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
+      [data.code, data.amount, maxUses, data.expires_at || null]
     );
     return result.rows[0];
   } catch (error: any) {
@@ -627,14 +656,14 @@ async createGiftCode(data: {
   }
 }
 
+/**
+ * Update gift code
+ */
 async updateGiftCode(id: number, updates: {
   amount?: number;
   max_uses?: number;
   is_active?: boolean;
   expires_at?: string | null;
-  min_balance_required?: number;
-  first_purchase_only?: boolean;
-  service_id?: number | null;
 }): Promise<boolean> {
   try {
     const fields = [];
@@ -657,20 +686,6 @@ async updateGiftCode(id: number, updates: {
       fields.push(`expires_at = $${paramIndex++}`);
       values.push(updates.expires_at);
     }
-    if (updates.min_balance_required !== undefined) {
-      fields.push(`min_balance_required = $${paramIndex++}`);
-      values.push(updates.min_balance_required);
-    }
-    if (updates.first_purchase_only !== undefined) {
-      fields.push(`first_purchase_only = $${paramIndex++}`);
-      values.push(updates.first_purchase_only);
-    }
-    if (updates.service_id !== undefined) {
-      fields.push(`service_id = $${paramIndex++}`);
-      values.push(updates.service_id);
-    }
-
-    fields.push(`updated_at = NOW()`);
 
     if (fields.length === 0) return true;
 
@@ -685,29 +700,36 @@ async updateGiftCode(id: number, updates: {
   }
 }
 
-async deleteGiftCode(id: number): Promise<boolean> {
+/**
+ * Delete gift code (only if no usages)
+ */
+async deleteGiftCode(id: number): Promise<{ success: boolean; message: string }> {
   try {
-    // First check if it has any usages
+    // Check if it has any usages
     const usages = await this.query(
       'SELECT COUNT(*) as count FROM gift_code_usages WHERE gift_code_id = $1',
       [id]
     );
     
     if (parseInt(usages.rows[0].count) > 0) {
-      // If it has usages, just deactivate it instead of deleting
-      await this.updateGiftCode(id, { is_active: false });
-      return true;
+      return { 
+        success: false, 
+        message: 'Cannot delete: gift code has been used already' 
+      };
     }
     
     // No usages, safe to delete
     await this.query('DELETE FROM gift_codes WHERE id = $1', [id]);
-    return true;
+    return { success: true, message: 'Gift code deleted successfully' };
   } catch (error) {
     console.error('Error deleting gift code:', error);
-    return false;
+    return { success: false, message: 'Error deleting gift code' };
   }
 }
 
+/**
+ * Get usage history for a gift code
+ */
 async getGiftCodeUsages(giftCodeId: number): Promise<any[]> {
   try {
     const result = await this.query(
@@ -725,6 +747,9 @@ async getGiftCodeUsages(giftCodeId: number): Promise<any[]> {
   }
 }
 
+/**
+ * Generate a random gift code
+ */
 async generateRandomGiftCode(): Promise<string> {
   const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
@@ -734,7 +759,46 @@ async generateRandomGiftCode(): Promise<string> {
   return `GIFT-${code}`;
 }
 
+/**
+ * Check if a gift code exists
+ */
+async giftCodeExists(code: string): Promise<boolean> {
+  try {
+    const result = await this.query(
+      'SELECT id FROM gift_codes WHERE code = $1',
+      [code]
+    );
+    return result.rows.length > 0;
+  } catch (error) {
+    console.error('Error checking gift code existence:', error);
+    return false;
+  }
+}
 
+/**
+ * Get gift code statistics
+ */
+async getGiftCodeStats(): Promise<any> {
+  try {
+    const result = await this.query(
+      `SELECT 
+         COUNT(*) as total_codes,
+         SUM(CASE WHEN is_active = true AND (expires_at IS NULL OR expires_at > NOW()) AND current_uses < max_uses THEN 1 ELSE 0 END) as active_codes,
+         COALESCE(SUM(amount * max_uses), 0) as total_value,
+         COALESCE(SUM((SELECT COALESCE(SUM(amount_received), 0) FROM gift_code_usages WHERE gift_code_id = gc.id)), 0) as total_redeemed
+       FROM gift_codes gc`
+    );
+    return result.rows[0];
+  } catch (error) {
+    console.error('Error getting gift code stats:', error);
+    return {
+      total_codes: 0,
+      active_codes: 0,
+      total_value: 0,
+      total_redeemed: 0
+    };
+  }
+}
 }
 
 export default new DatabaseService();
