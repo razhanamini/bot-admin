@@ -420,17 +420,17 @@ async updateGiftCode(id: number, updates: {
 async deleteGiftCode(id: number): Promise<{ success: boolean; message: string }> {
   try {
     // Check if it has any usages
-    const usages = await this.query(
-      'SELECT COUNT(*) as count FROM gift_code_usages WHERE gift_code_id = $1',
-      [id]
-    );
+    // const usages = await this.query(
+    //   'SELECT COUNT(*) as count FROM gift_code_usages WHERE gift_code_id = $1',
+    //   [id]
+    // );
     
-    if (parseInt(usages.rows[0].count) > 0) {
-      return { 
-        success: false, 
-        message: 'Cannot delete: gift code has been used already' 
-      };
-    }
+    // if (parseInt(usages.rows[0].count) > 0) {
+    //   return { 
+    //     success: false, 
+    //     message: 'Cannot delete: gift code has been used already' 
+    //   };
+    // }
     
     // No usages, safe to delete
     await this.query('DELETE FROM gift_codes WHERE id = $1', [id]);
