@@ -552,12 +552,15 @@ class DatabaseService {
 /**
  * Get all gift codes with usage statistics
  */
+/**
+ * Get all gift codes with usage statistics
+ */
 async getAllGiftCodes(): Promise<any[]> {
   try {
     const result = await this.query(
       `SELECT gc.*, 
               COUNT(gcu.id) as times_used,
-              COALESCE(SUM(gcu.amount_received), 0) as total_redeemed
+              COALESCE(SUM(gc.amount), 0) as total_redeemed
        FROM gift_codes gc
        LEFT JOIN gift_code_usages gcu ON gc.id = gcu.gift_code_id
        GROUP BY gc.id
