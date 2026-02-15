@@ -648,6 +648,7 @@ class AdminBotService {
   }
 
   private async listGiftCodes(ctx: any) {
+    try{
     const giftCodes = await db.getAllGiftCodes();
     
     if (giftCodes.length === 0) {
@@ -702,13 +703,21 @@ class AdminBotService {
     ]);
     buttons.push([Markup.button.callback('🔙 Back', 'back_to_gifts')]);
 
-    await ctx.editMessageText(message, {
+   await ctx.editMessageText(message, {
       parse_mode: 'Markdown',
-      reply_markup: {
-        inline_keyboard: buttons
-      }
+      reply_markup: { inline_keyboard: buttons }
     });
+  } catch (error: any) {
+    // Handle "message not found" error
+    if (error.message?.includes('message to edit not found')) {
+      // Send new message instead of editing
+      await ctx.reply('🔄 Refreshing...');
+      await this.showGiftCodesMenu(ctx);
+    } else {
+      console.error('Error in listGiftCodes:', error);
+    }
   }
+}
 
   private async startGiftCodeCreate(ctx: any) {
     const userId = ctx.from.id;
@@ -889,7 +898,12 @@ private async showGiftCodeUsages(ctx: any, giftId: number) {
     if (usages.length > 10) {
       message += `\n*... and ${usages.length - 10} more*`;
     }
-
+const currentText = (ctx.callbackQuery.message as any).text;
+    if (currentText === message) {
+      await ctx.answerCbQuery('📊 No new updates');
+      return; // Don't edit if same content
+    }
+    
     await ctx.editMessageText(message, {
       parse_mode: 'Markdown',
       reply_markup: {
@@ -899,18 +913,19 @@ private async showGiftCodeUsages(ctx: any, giftId: number) {
         ]
       }
     });
-  } catch (error) {
-    console.error('Error in showGiftCodeUsages:', error);
-    await ctx.editMessageText('❌ Error loading gift code usages', {
-      parse_mode: 'Markdown',
-      reply_markup: {
-        inline_keyboard: [
-          [Markup.button.callback('🔙 Back', 'gift_codes_list')]
-        ]
-      }
-    });
-  }
-}
+    
+    await ctx.answerCbQuery(); // Acknowledge the callback
+    
+  } catch (error: any) {
+    // Handle "message not modified" error
+    if (error.message?.includes('message is not modified')) {
+      await ctx.answerCbQuery('📊 No changes to display');
+    } else {
+      console.error('Error in showGiftCodeUsages:', error);
+      await ctx.answerCbQuery('❌ Error loading data');
+    }
+  }}
+  
   private async generateRandomGiftCode(ctx: any) {
     try {
       const code = await db.generateRandomGiftCode();
