@@ -1560,16 +1560,29 @@ class AdminBotService {
       await ctx.answerCbQuery(`❌ Error: ${error.message}`);
     }
   }
-
-  private async showGiftCodeUsages(ctx: any, giftId: number) {
+private async showGiftCodeUsages(ctx: any, giftId: number) {
+  try {
     const gift = await db.getGiftCodeById(giftId);
     const usages = await db.getGiftCodeUsages(giftId);
+    
+    if (!gift) {
+      await ctx.editMessageText('❌ Gift code not found', {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [Markup.button.callback('🔙 Back', 'gift_codes_list')]
+          ]
+        }
+      });
+      return;
+    }
     
     if (usages.length === 0) {
       await ctx.editMessageText(
         `📊 *Gift Code Usages*\n\n` +
         `🎁 *Code:* \`${gift.code}\`\n` +
-        `💰 *Amount:* ${gift.amount.toLocaleString()} IRR\n\n` +
+        `💰 *Amount:* ${gift.amount.toLocaleString()} IRR\n` +
+        `📊 *Uses:* ${gift.current_uses}/${gift.max_uses}\n\n` +
         `📭 *No usage records found*`,
         {
           parse_mode: 'Markdown',
@@ -1587,12 +1600,12 @@ class AdminBotService {
     message += `🎁 *Code:* \`${gift.code}\`\n`;
     message += `💰 *Amount:* ${gift.amount.toLocaleString()} IRR\n`;
     message += `📊 *Total Uses:* ${gift.current_uses}/${gift.max_uses}\n`;
-    message += `💵 *Total Redeemed:* ${gift.total_redeemed.toLocaleString()} IRR\n\n`;
+    message += `💵 *Total Redeemed:* ${(gift.amount * gift.current_uses).toLocaleString()} IRR\n\n`;
     message += `*Recent Usages:*\n`;
 
     usages.slice(0, 10).forEach((u: any, index: number) => {
       message += `${index + 1}. 👤 ${u.first_name || 'Unknown'} (@${u.username || 'no username'})\n`;
-      message += `   💰 +${u.amount_received.toLocaleString()} IRR\n`;
+      message += `   💰 +${gift.amount.toLocaleString()} IRR\n`; // Use gift.amount instead of u.amount_received
       message += `   📅 ${new Date(u.redeemed_at).toLocaleString()}\n\n`;
     });
 
@@ -1609,8 +1622,18 @@ class AdminBotService {
         ]
       }
     });
+  } catch (error) {
+    console.error('Error in showGiftCodeUsages:', error);
+    await ctx.editMessageText('❌ Error loading gift code usages', {
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [
+          [Markup.button.callback('🔙 Back', 'gift_codes_list')]
+        ]
+      }
+    });
   }
-
+}
   private async generateRandomGiftCode(ctx: any) {
     try {
       const code = await db.generateRandomGiftCode();
