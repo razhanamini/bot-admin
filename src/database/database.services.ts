@@ -546,6 +546,195 @@ class DatabaseService {
   );
   return result.rows;
 }
+
+
+// In database.services.ts, add these methods:
+
+async getGiftCodes(onlyActive: boolean = false): Promise<any[]> {
+  try {
+    let query = `
+      SELECT gc.*, 
+             u.username as created_by_username,
+             COUNT(gcu.id) as actual_uses,
+             COALESCE(SUM(gcu.amount_received), 0) as total_redeemed
+      FROM gift_codes gc
+      LEFT JOIN users u ON gc.created_by = u.id
+      LEFT JOIN gift_code_usages gcu ON gc.id = gcu.gift_code_id
+    `;
+    
+    if (onlyActive) {
+      query += ` WHERE gc.is_active = true AND (gc.expires_at IS NULL OR gc.expires_at > NOW()) AND gc.current_uses < gc.max_uses`;
+    }
+    
+    query += ` GROUP BY gc.id, u.username ORDER BY gc.created_at DESC`;
+    
+    const result = await this.query(query);
+    return result.rows;
+  } catch (error) {
+    console.error('Error getting gift codes:', error);
+    return [];
+  }
+}
+
+async getGiftCodeById(id: number): Promise<any> {
+  try {
+    const result = await this.query(
+      `SELECT gc.*, 
+              u.username as created_by_username,
+              COUNT(gcu.id) as actual_uses,
+              COALESCE(SUM(gcu.amount_received), 0) as total_redeemed
+       FROM gift_codes gc
+       LEFT JOIN users u ON gc.created_by = u.id
+       LEFT JOIN gift_code_usages gcu ON gc.id = gcu.gift_code_id
+       WHERE gc.id = $1
+       GROUP BY gc.id, u.username`,
+      [id]
+    );
+    return result.rows[0] || null;
+  } catch (error) {
+    console.error('Error getting gift code by id:', error);
+    return null;
+  }
+}
+
+async createGiftCode(data: {
+  code: string;
+  amount: number;
+  max_uses: number;
+  expires_at?: string;
+  created_by?: number;
+  min_balance_required?: number;
+  first_purchase_only?: boolean;
+  service_id?: number;
+}): Promise<any> {
+  try {
+    const result = await this.query(
+      `INSERT INTO gift_codes (
+        code, amount, max_uses, expires_at, created_by, 
+        min_balance_required, first_purchase_only, service_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *`,
+      [
+        data.code, data.amount, data.max_uses, data.expires_at, 
+        data.created_by, data.min_balance_required || 0, 
+        data.first_purchase_only || false, data.service_id
+      ]
+    );
+    return result.rows[0];
+  } catch (error: any) {
+    console.error('Error creating gift code:', error);
+    throw error;
+  }
+}
+
+async updateGiftCode(id: number, updates: {
+  amount?: number;
+  max_uses?: number;
+  is_active?: boolean;
+  expires_at?: string | null;
+  min_balance_required?: number;
+  first_purchase_only?: boolean;
+  service_id?: number | null;
+}): Promise<boolean> {
+  try {
+    const fields = [];
+    const values = [];
+    let paramIndex = 1;
+
+    if (updates.amount !== undefined) {
+      fields.push(`amount = $${paramIndex++}`);
+      values.push(updates.amount);
+    }
+    if (updates.max_uses !== undefined) {
+      fields.push(`max_uses = $${paramIndex++}`);
+      values.push(updates.max_uses);
+    }
+    if (updates.is_active !== undefined) {
+      fields.push(`is_active = $${paramIndex++}`);
+      values.push(updates.is_active);
+    }
+    if (updates.expires_at !== undefined) {
+      fields.push(`expires_at = $${paramIndex++}`);
+      values.push(updates.expires_at);
+    }
+    if (updates.min_balance_required !== undefined) {
+      fields.push(`min_balance_required = $${paramIndex++}`);
+      values.push(updates.min_balance_required);
+    }
+    if (updates.first_purchase_only !== undefined) {
+      fields.push(`first_purchase_only = $${paramIndex++}`);
+      values.push(updates.first_purchase_only);
+    }
+    if (updates.service_id !== undefined) {
+      fields.push(`service_id = $${paramIndex++}`);
+      values.push(updates.service_id);
+    }
+
+    fields.push(`updated_at = NOW()`);
+
+    if (fields.length === 0) return true;
+
+    values.push(id);
+    const query = `UPDATE gift_codes SET ${fields.join(', ')} WHERE id = $${paramIndex}`;
+    
+    await this.query(query, values);
+    return true;
+  } catch (error) {
+    console.error('Error updating gift code:', error);
+    return false;
+  }
+}
+
+async deleteGiftCode(id: number): Promise<boolean> {
+  try {
+    // First check if it has any usages
+    const usages = await this.query(
+      'SELECT COUNT(*) as count FROM gift_code_usages WHERE gift_code_id = $1',
+      [id]
+    );
+    
+    if (parseInt(usages.rows[0].count) > 0) {
+      // If it has usages, just deactivate it instead of deleting
+      await this.updateGiftCode(id, { is_active: false });
+      return true;
+    }
+    
+    // No usages, safe to delete
+    await this.query('DELETE FROM gift_codes WHERE id = $1', [id]);
+    return true;
+  } catch (error) {
+    console.error('Error deleting gift code:', error);
+    return false;
+  }
+}
+
+async getGiftCodeUsages(giftCodeId: number): Promise<any[]> {
+  try {
+    const result = await this.query(
+      `SELECT gcu.*, u.username, u.telegram_id, u.first_name
+       FROM gift_code_usages gcu
+       JOIN users u ON gcu.user_id = u.id
+       WHERE gcu.gift_code_id = $1
+       ORDER BY gcu.redeemed_at DESC`,
+      [giftCodeId]
+    );
+    return result.rows;
+  } catch (error) {
+    console.error('Error getting gift code usages:', error);
+    return [];
+  }
+}
+
+async generateRandomGiftCode(): Promise<string> {
+  const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 8; i++) {
+    code += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
+  return `GIFT-${code}`;
+}
+
+
 }
 
 export default new DatabaseService();
