@@ -788,7 +788,7 @@ async getGiftCodeStats(): Promise<any> {
          COUNT(*) as total_codes,
          SUM(CASE WHEN is_active = true AND (expires_at IS NULL OR expires_at > NOW()) AND current_uses < max_uses THEN 1 ELSE 0 END) as active_codes,
          COALESCE(SUM(amount * max_uses), 0) as total_value,
-         COALESCE(SUM((SELECT COALESCE(SUM(amount_received), 0) FROM gift_code_usages WHERE gift_code_id = gc.id)), 0) as total_redeemed
+         COALESCE(SUM(amount * current_uses), 0) as total_redeemed
        FROM gift_codes gc`
     );
     return result.rows[0];
