@@ -337,21 +337,39 @@ ${this.bold('📊 Users:')} ${server.current_users}/${server.max_users}
 • Expiring Soon in 3 days: ${expiringCount}`;
   }
 
+  // static usersList(users: any[], stats: any): string {
+  //   let message = `👥 *Recent Users*\n\n`;
+  //   message += `📊 *Stats:* Total: ${stats.total_users || 0}   Today: ${stats.new_users_today || 0}\n\n`;
+    
+  //   users.forEach((u, index) => {
+  //     const username = u.username ? `@${u.username}` : 'None';
+  //     message += `${index + 1}\\. ${this.bold(this.escapeMarkdown(u.first_name || 'Anonymous'))}\n`;
+  //     message += `   🆔 ${u.telegram_id}\n`;
+  //     message += `   📧 ${username}\n`;
+  //     message += `   💰 Balance: ${u.balance ? Math.round(u.balance).toLocaleString() : 0} IRR\n`;
+  //     message += `   📅 Joined: ${new Date(u.created_at).toLocaleDateString()}\n\n`;
+  //   });
+    
+  //   return message;
+  // }
+
   static usersList(users: any[], stats: any): string {
-    let message = `👥 *Recent Users*\n\n`;
-    message += `📊 *Stats:* Total: ${stats.total_users || 0}   Today: ${stats.new_users_today || 0}\n\n`;
-    
-    users.forEach((u, index) => {
-      const username = u.username ? `@${u.username}` : 'None';
-      message += `${index + 1}\\. ${this.bold(this.escapeMarkdown(u.first_name || 'Anonymous'))}\n`;
-      message += `   🆔 ${u.telegram_id}\n`;
-      message += `   📧 ${username}\n`;
-      message += `   💰 Balance: ${u.balance ? Math.round(u.balance).toLocaleString() : 0} IRR\n`;
-      message += `   📅 Joined: ${new Date(u.created_at).toLocaleDateString()}\n\n`;
-    });
-    
-    return message;
-  }
+  let message = `👥 *Recent Users*\n\n`;
+  message += `📊 *Stats:* Total: ${stats.total_users || 0}   Today: ${stats.new_users_today || 0}\n\n`;
+
+  users.forEach((u, index) => {
+    const username = u.username ? `@${u.username}` : 'None';
+
+    message += `${index + 1}. *${u.first_name || 'Anonymous'}*\n`;
+    message += `   🆔 ${u.telegram_id}\n`;
+    message += `   📧 ${username}\n`;
+    message += `   💰 Balance: ${u.balance ? Math.round(u.balance).toLocaleString() : 0} IRR\n`;
+    message += `   📅 Joined: ${new Date(u.created_at).toLocaleDateString()}\n\n`;
+  });
+
+  return message;
+}
+
 
   static paymentsList(payments: any[], stats: any): string {
     let message = `💰 *Recent Payments*\n\n`;
