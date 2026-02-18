@@ -12,7 +12,11 @@ interface SessionState {
   step: number;
 }
 
+
+
 class AdminBotService {
+
+
   private bot: Telegraf;
   private sessions: Map<number, SessionState> = new Map();
 
@@ -27,6 +31,13 @@ class AdminBotService {
     this.setupHandlers();
     this.setupCallbacks();
   }
+
+
+   private escapeMarkdown(text: string): string {
+    return text.replace(/[_*[\]()~`>#+\-=|{}.!]/g, '\\$&');
+  }
+
+   
 
   private getSession(userId: number): SessionState {
     if (!this.sessions.has(userId)) {
@@ -101,7 +112,7 @@ class AdminBotService {
     
     const message = AdminMessages.usersList(users, stats);
     
-    await ctx.reply(message, {
+    await ctx.reply(this.escapeMarkdown(message), {
       parse_mode: 'MarkdownV2',
       reply_markup: {
         inline_keyboard: [
