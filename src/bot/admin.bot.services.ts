@@ -2,6 +2,7 @@ import { Telegraf, Context, Markup } from 'telegraf';
 import dotenv from 'dotenv';
 import db from '../database/database.services';
 import { AdminMessages } from './messages';
+import v2rayServices from '../services/v2ray.services';
 
 dotenv.config();
 
@@ -33,11 +34,11 @@ class AdminBotService {
   }
 
 
-   private escapeMarkdown(text: string): string {
+  private escapeMarkdown(text: string): string {
     return text.replace(/[_*[\]()~`>#+\-=|{}.!]/g, '\\$&');
   }
 
-   
+
 
   private getSession(userId: number): SessionState {
     if (!this.sessions.has(userId)) {
@@ -109,9 +110,9 @@ class AdminBotService {
   private async showUsers(ctx: Context) {
     const users = await db.getRecentUsers(10);
     const stats = await db.getUsersStats();
-    
+
     const message = AdminMessages.usersList(users, stats);
-    
+
     await ctx.reply(this.escapeMarkdown(message), {
       parse_mode: 'MarkdownV2',
       reply_markup: {
@@ -126,9 +127,9 @@ class AdminBotService {
   private async showPayments(ctx: Context) {
     const payments = await db.getRecentPayments(10);
     const stats = await db.getPaymentsStats();
-    
+
     const message = AdminMessages.paymentsList(payments, stats);
-    
+
     await ctx.reply(message, {
       parse_mode: 'MarkdownV2',
       reply_markup: {
@@ -140,14 +141,14 @@ class AdminBotService {
     });
   }
 
-    // ================ MONITORING ================
+  // ================ MONITORING ================
   private async showStats(ctx: Context) {
     const userStats = await db.getUsersStats();
     const paymentStats = await db.getPaymentsStats();
     const serverStats = await db.getServerStats();
     const activeConfigs = await db.getActiveConfigsCount();
     const expiringConfigs = await db.getExpiringConfigs(3);
-    
+
     const message = AdminMessages.statsOverview(
       userStats,
       paymentStats,
@@ -155,7 +156,7 @@ class AdminBotService {
       activeConfigs,
       expiringConfigs.length
     );
-    
+
     await ctx.reply(message, {
       parse_mode: 'MarkdownV2',
       reply_markup: {
@@ -167,7 +168,7 @@ class AdminBotService {
     });
   }
 
-    private async showServicesMenu(ctx: Context) {
+  private async showServicesMenu(ctx: Context) {
     await ctx.reply(AdminMessages.servicesMenu(), {
       reply_markup: {
         inline_keyboard: [
@@ -179,7 +180,7 @@ class AdminBotService {
     });
   }
 
-    // ================ SERVERS CRUD ================
+  // ================ SERVERS CRUD ================
   private async showServersMenu(ctx: Context) {
     await ctx.reply(AdminMessages.serversMenu(), {
       reply_markup: {
@@ -229,14 +230,14 @@ class AdminBotService {
       const text = ctx.message.text;
 
       // Skip if it's a command or menu button
-      if (text.startsWith('/') || 
-          text === '📦 Services' || 
-          text === '🖥️ Servers' || 
-          text === '📊 Statistics' || 
-          text === '👥 Users' || 
-          text === '💰 Payments' || 
-          text === '🎁 Gift Codes' || 
-          text === '🔙 Main Menu') {
+      if (text.startsWith('/') ||
+        text === '📦 Services' ||
+        text === '🖥️ Servers' ||
+        text === '📊 Statistics' ||
+        text === '👥 Users' ||
+        text === '💰 Payments' ||
+        text === '🎁 Gift Codes' ||
+        text === '🔙 Main Menu') {
         return;
       }
 
@@ -247,11 +248,11 @@ class AdminBotService {
     });
   }
 
-  
+
 
   private async listServices(ctx: any) {
     const services = await db.getServices();
-    
+
     if (services.length === 0) {
       await ctx.editMessageText(AdminMessages.noServices(), {
         reply_markup: {
@@ -265,7 +266,7 @@ class AdminBotService {
     }
 
     const message = AdminMessages.servicesList(services);
-    
+
     const buttons = services.slice(0, 5).map((service: any) => [
       Markup.button.callback(
         `✏️ ${service.name} (${service.price.toLocaleString()} IRR)`,
@@ -289,11 +290,11 @@ class AdminBotService {
   private async startServiceCreate(ctx: any) {
     const userId = ctx.from.id;
     const session = this.getSession(userId);
-    
+
     session.currentAction = 'create_service';
     session.currentItem = {};
     session.step = 1;
-    
+
     await ctx.editMessageText(AdminMessages.createServiceStep1(), {
       reply_markup: {
         inline_keyboard: [
@@ -307,19 +308,19 @@ class AdminBotService {
 
   private async startServiceEdit(ctx: any, serviceId: number) {
     const service = await db.getServiceById(serviceId);
-    
+
     if (!service) {
       await ctx.answerCbQuery('Service not found!');
       return;
     }
-    
+
     const userId = ctx.from.id;
     const session = this.getSession(userId);
-    
+
     session.currentAction = 'edit_service';
     session.currentItem = service;
     session.step = 1;
-    
+
     await ctx.editMessageText(AdminMessages.editService(service), {
       parse_mode: 'MarkdownV2',
       reply_markup: {
@@ -339,7 +340,7 @@ class AdminBotService {
 
   private async confirmServiceDelete(ctx: any, serviceId: number) {
     const service = await db.getServiceById(serviceId);
-    
+
     await ctx.editMessageText(AdminMessages.confirmDeleteService(service), {
       parse_mode: 'MarkdownV2',
       reply_markup: {
@@ -366,7 +367,7 @@ class AdminBotService {
 
   private async listServers(ctx: any) {
     const servers = await db.getServers();
-    
+
     if (servers.length === 0) {
       await ctx.editMessageText(AdminMessages.noServers(), {
         reply_markup: {
@@ -380,7 +381,7 @@ class AdminBotService {
     }
 
     const message = AdminMessages.serversList(servers);
-    
+
     const buttons = servers.slice(0, 5).map((server: any) => [
       Markup.button.callback(
         `✏️ ${server.name} (${server.location || 'Unknown'})`,
@@ -405,11 +406,11 @@ class AdminBotService {
   private async startServerCreate(ctx: any) {
     const userId = ctx.from.id;
     const session = this.getSession(userId);
-    
+
     session.currentAction = 'create_server';
     session.currentItem = {};
     session.step = 1;
-    
+
     await ctx.editMessageText(AdminMessages.createServerStep1(), {
       reply_markup: {
         inline_keyboard: [
@@ -419,30 +420,64 @@ class AdminBotService {
     });
   }
 
+  // private async startServerEdit(ctx: any, serverId: number) {
+  //   const server = await db.getServerById(serverId);
+
+  //   if (!server) {
+  //     await ctx.answerCbQuery('Server not found!');
+  //     return;
+  //   }
+
+  //   const userId = ctx.from.id;
+  //   const session = this.getSession(userId);
+
+  //   session.currentAction = 'edit_server';
+  //   session.currentItem = server;
+  //   session.step = 1;
+
+  //   await ctx.editMessageText(AdminMessages.editServer(server), {
+  //     parse_mode: 'MarkdownV2',
+  //     reply_markup: {
+  //       inline_keyboard: [
+  //         [Markup.button.callback('✏️ Edit Name', `edit_server_name_${serverId}`)],
+  //         [Markup.button.callback('✏️ Edit Domain/IP', `edit_server_host_${serverId}`)],
+  //         [Markup.button.callback('✏️ Edit Ports', `edit_server_ports_${serverId}`)],
+  //         [Markup.button.callback('✏️ Edit API Token', `edit_server_token_${serverId}`)],
+  //         [Markup.button.callback('✏️ Edit Capacity', `edit_server_capacity_${serverId}`)],
+  //         [Markup.button.callback('🔄 Toggle Status', `toggle_server_${serverId}`)],
+  //         [Markup.button.callback('❌ Delete', `server_delete_${serverId}`)],
+  //         [Markup.button.callback('🔙 Back', 'servers_list')]
+  //       ]
+  //     }
+  //   });
+  // }
+  // In startServerEdit, use | as separator instead of _
   private async startServerEdit(ctx: any, serverId: number) {
     const server = await db.getServerById(serverId);
-    
     if (!server) {
       await ctx.answerCbQuery('Server not found!');
       return;
     }
-    
+
     const userId = ctx.from.id;
     const session = this.getSession(userId);
-    
     session.currentAction = 'edit_server';
     session.currentItem = server;
     session.step = 1;
-    
+
     await ctx.editMessageText(AdminMessages.editServer(server), {
       parse_mode: 'MarkdownV2',
       reply_markup: {
         inline_keyboard: [
-          [Markup.button.callback('✏️ Edit Name', `edit_server_name_${serverId}`)],
-          [Markup.button.callback('✏️ Edit Domain/IP', `edit_server_host_${serverId}`)],
-          [Markup.button.callback('✏️ Edit Ports', `edit_server_ports_${serverId}`)],
-          [Markup.button.callback('✏️ Edit API Token', `edit_server_token_${serverId}`)],
-          [Markup.button.callback('✏️ Edit Capacity', `edit_server_capacity_${serverId}`)],
+          [Markup.button.callback('✏️ Edit Name', `esf|name|${serverId}`)],
+          [Markup.button.callback('✏️ Edit Domain', `esf|domain|${serverId}`)],
+          [Markup.button.callback('✏️ Edit IP', `esf|ip|${serverId}`)],
+          [Markup.button.callback('✏️ Edit API Port', `esf|api_port|${serverId}`)],
+          [Markup.button.callback('✏️ Edit Xray Port', `esf|xray_port|${serverId}`)],
+          [Markup.button.callback('✏️ Edit API Token', `esf|api_token|${serverId}`)],
+          [Markup.button.callback('✏️ Edit Max Users', `esf|max_users|${serverId}`)],
+          [Markup.button.callback('✏️ Edit Location', `esf|location|${serverId}`)],
+          [Markup.button.callback('✏️ Edit Config Format', `esf|config_format|${serverId}`)],
           [Markup.button.callback('🔄 Toggle Status', `toggle_server_${serverId}`)],
           [Markup.button.callback('❌ Delete', `server_delete_${serverId}`)],
           [Markup.button.callback('🔙 Back', 'servers_list')]
@@ -453,7 +488,7 @@ class AdminBotService {
 
   private async confirmServerDelete(ctx: any, serverId: number) {
     const server = await db.getServerById(serverId);
-    
+
     await ctx.editMessageText(AdminMessages.confirmDeleteServer(server), {
       parse_mode: 'MarkdownV2',
       reply_markup: {
@@ -467,10 +502,25 @@ class AdminBotService {
     });
   }
 
+  // private async deleteServer(ctx: any, serverId: number) {
+  //   try {
+  //     await db.deleteServer(serverId);
+  //     await ctx.answerCbQuery('✅ Server deleted successfully!');
+  //     await this.listServers(ctx);
+  //   } catch (error: any) {
+  //     await ctx.answerCbQuery(`❌ Error: ${error.message}`);
+  //   }
+  // }
   private async deleteServer(ctx: any, serverId: number) {
     try {
       await db.deleteServer(serverId);
       await ctx.answerCbQuery('✅ Server deleted successfully!');
+
+      // Rebuild all user config links without the deleted server
+      await ctx.reply('🔄 Updating user config links...');
+      await this.updateUserConfigs();
+      await ctx.reply('✅ User config links updated successfully.');
+
       await this.listServers(ctx);
     } catch (error: any) {
       await ctx.answerCbQuery(`❌ Error: ${error.message}`);
@@ -478,8 +528,26 @@ class AdminBotService {
   }
 
 
-
   private setupCallbacks() {
+
+
+
+    this.bot.action(/^esf\|(.+)\|(\d+)$/, async (ctx) => {
+      const field = ctx.match[1];
+      const serverId = parseInt(ctx.match[2]);
+      await ctx.answerCbQuery();
+      await this.startServerFieldEdit(ctx, field, serverId);
+    });
+
+    this.bot.action(/^toggle_server_(\d+)$/, async (ctx) => {
+      const serverId = parseInt(ctx.match[1]);
+      const server = await db.getServerById(serverId);
+      const newStatus = server.status === 'active' ? 'offline' : 'active';
+      await db.updateServer(serverId, { status: newStatus });
+      await ctx.answerCbQuery(`✅ Server ${newStatus === 'active' ? 'activated' : 'deactivated'}`);
+      await this.startServerEdit(ctx, serverId);
+    });
+
     // Services
     this.bot.action(/^services_list$/, async (ctx) => {
       await this.listServices(ctx);
@@ -643,6 +711,49 @@ class AdminBotService {
 
 
 
+  private async startServerFieldEdit(ctx: any, field: string, serverId: number) {
+    const userId = ctx.from.id;
+    const session = this.getSession(userId);
+    const server = await db.getServerById(serverId);
+
+    session.currentAction = 'edit_server_field';
+    session.currentItem = { serverId, field };
+    session.step = 1;
+
+    const fieldLabels: Record<string, string> = {
+      name: 'Server Name',
+      domain: 'Domain',
+      ip: 'IP Address',
+      api_port: 'API Port',
+      xray_port: 'Xray Port',
+      api_token: 'API Token',
+      max_users: 'Maximum Users',
+      location: 'Location',
+      config_format: 'Config Format'
+    };
+
+    const currentValue = field === 'api_token'
+      ? '***hidden***'
+      : String(server[field] ?? 'not set');
+
+    await ctx.editMessageText(
+      `✏️ *Edit ${fieldLabels[field] || field}*\n\n` +
+      `Current value: \`${currentValue}\`\n\n` +
+      `Enter new value:` +
+      (field === 'config_format' ? '\n\n_Paste full format with USER\\_UUID and USER\\_EMAIL placeholders_' : ''),
+      {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [Markup.button.callback('❌ Cancel', `server_edit_${serverId}`)]
+          ]
+        }
+      }
+    );
+  }
+
+
+
   // ================ GIFT CODES CRUD ================
   private async showGiftCodesMenu(ctx: Context) {
     await ctx.reply('🎁 *Gift Code Management*\n\nSelect an option:', {
@@ -659,85 +770,85 @@ class AdminBotService {
   }
 
   private async listGiftCodes(ctx: any) {
-    try{
-    const giftCodes = await db.getAllGiftCodes();
-    
-    if (giftCodes.length === 0) {
-      await ctx.editMessageText('📭 *No gift codes found*\n\nClick the button below to create your first gift code.', {
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [
-            [Markup.button.callback('➕ Create Gift Code', 'gift_code_create')],
-            [Markup.button.callback('🎲 Generate Random', 'gift_code_random')],
-            [Markup.button.callback('🔙 Back', 'back_to_gifts')]
-          ]
-        }
+    try {
+      const giftCodes = await db.getAllGiftCodes();
+
+      if (giftCodes.length === 0) {
+        await ctx.editMessageText('📭 *No gift codes found*\n\nClick the button below to create your first gift code.', {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [Markup.button.callback('➕ Create Gift Code', 'gift_code_create')],
+              [Markup.button.callback('🎲 Generate Random', 'gift_code_random')],
+              [Markup.button.callback('🔙 Back', 'back_to_gifts')]
+            ]
+          }
+        });
+        return;
+      }
+
+      let message = '🎁 *Gift Codes List*\n\n';
+
+      giftCodes.slice(0, 8).forEach((g: any, index: number) => {
+        const status = !g.is_active ? '❌ Inactive' :
+          g.expires_at && new Date(g.expires_at) < new Date() ? '⏰ Expired' :
+            g.current_uses >= g.max_uses ? '✅ Fully Used' : '🟢 Active';
+
+        const expiryInfo = g.expires_at ? `📅 Expires: ${new Date(g.expires_at).toLocaleDateString()}\n` : '';
+
+        message += `${index + 1}. *${g.code}*\n`;
+        message += `   💰 Amount: ${g.amount.toLocaleString()} IRR\n`;
+        message += `   📊 Uses: ${g.current_uses}/${g.max_uses}\n`;
+        message += `   💵 Redeemed: ${g.total_redeemed.toLocaleString()} IRR\n`;
+        message += `   📌 Status: ${status}\n`;
+        message += `   ${expiryInfo}`;
+        message += `   📅 Created: ${new Date(g.created_at).toLocaleDateString()}\n\n`;
       });
-      return;
-    }
 
-    let message = '🎁 *Gift Codes List*\n\n';
-    
-    giftCodes.slice(0, 8).forEach((g: any, index: number) => {
-      const status = !g.is_active ? '❌ Inactive' : 
-                    g.expires_at && new Date(g.expires_at) < new Date() ? '⏰ Expired' :
-                    g.current_uses >= g.max_uses ? '✅ Fully Used' : '🟢 Active';
-      
-      const expiryInfo = g.expires_at ? `📅 Expires: ${new Date(g.expires_at).toLocaleDateString()}\n` : '';
-      
-      message += `${index + 1}. *${g.code}*\n`;
-      message += `   💰 Amount: ${g.amount.toLocaleString()} IRR\n`;
-      message += `   📊 Uses: ${g.current_uses}/${g.max_uses}\n`;
-      message += `   💵 Redeemed: ${g.total_redeemed.toLocaleString()} IRR\n`;
-      message += `   📌 Status: ${status}\n`;
-      message += `   ${expiryInfo}`;
-      message += `   📅 Created: ${new Date(g.created_at).toLocaleDateString()}\n\n`;
-    });
+      if (giftCodes.length > 8) {
+        message += `\n*... and ${giftCodes.length - 8} more*`;
+      }
 
-    if (giftCodes.length > 8) {
-      message += `\n*... and ${giftCodes.length - 8} more*`;
-    }
+      const buttons = giftCodes.slice(0, 5).map((g: any) => [
+        Markup.button.callback(
+          `✏️ ${g.code} (${g.amount.toLocaleString()} IRR)`,
+          `gift_code_edit_${g.id}`
+        ),
+        Markup.button.callback('📊', `gift_code_usages_${g.id}`),
+        Markup.button.callback('❌', `gift_code_delete_${g.id}`)
+      ]);
 
-    const buttons = giftCodes.slice(0, 5).map((g: any) => [
-      Markup.button.callback(
-        `✏️ ${g.code} (${g.amount.toLocaleString()} IRR)`,
-        `gift_code_edit_${g.id}`
-      ),
-      Markup.button.callback('📊', `gift_code_usages_${g.id}`),
-      Markup.button.callback('❌', `gift_code_delete_${g.id}`)
-    ]);
+      buttons.push([
+        Markup.button.callback('➕ Create New', 'gift_code_create'),
+        Markup.button.callback('🎲 Random', 'gift_code_random'),
+        Markup.button.callback('🔄 Refresh', 'refresh_gifts')
+      ]);
+      buttons.push([Markup.button.callback('🔙 Back', 'back_to_gifts')]);
 
-    buttons.push([
-      Markup.button.callback('➕ Create New', 'gift_code_create'),
-      Markup.button.callback('🎲 Random', 'gift_code_random'),
-      Markup.button.callback('🔄 Refresh', 'refresh_gifts')
-    ]);
-    buttons.push([Markup.button.callback('🔙 Back', 'back_to_gifts')]);
-
-   await ctx.editMessageText(message, {
-      parse_mode: 'Markdown',
-      reply_markup: { inline_keyboard: buttons }
-    });
-  } catch (error: any) {
-    // Handle "message not found" error
-    if (error.message?.includes('message to edit not found')) {
-      // Send new message instead of editing
-      await ctx.reply('🔄 Refreshing...');
-      await this.showGiftCodesMenu(ctx);
-    } else {
-      console.error('Error in listGiftCodes:', error);
+      await ctx.editMessageText(message, {
+        parse_mode: 'Markdown',
+        reply_markup: { inline_keyboard: buttons }
+      });
+    } catch (error: any) {
+      // Handle "message not found" error
+      if (error.message?.includes('message to edit not found')) {
+        // Send new message instead of editing
+        await ctx.reply('🔄 Refreshing...');
+        await this.showGiftCodesMenu(ctx);
+      } else {
+        console.error('Error in listGiftCodes:', error);
+      }
     }
   }
-}
 
   private async startGiftCodeCreate(ctx: any) {
     const userId = ctx.from.id;
     const session = this.getSession(userId);
-    
+
     session.currentAction = 'create_gift';
     session.currentItem = {};
     session.step = 1;
-    
+
     await ctx.editMessageText(
       '➕ *Create Gift Code - Step 1/6*\n\n' +
       'Please enter the *gift code*:\n' +
@@ -757,25 +868,25 @@ class AdminBotService {
 
   private async startGiftCodeEdit(ctx: any, giftId: number) {
     const gift = await db.getGiftCodeById(giftId);
-    
+
     if (!gift) {
       await ctx.answerCbQuery('Gift code not found!');
       return;
     }
-    
+
     const userId = ctx.from.id;
     const session = this.getSession(userId);
-    
+
     session.currentAction = 'edit_gift';
     session.currentItem = gift;
     session.step = 1;
-    
-    const status = !gift.is_active ? '❌ Inactive' : 
-                   gift.expires_at && new Date(gift.expires_at) < new Date() ? '⏰ Expired' :
-                   gift.current_uses >= gift.max_uses ? '✅ Fully Used' : '🟢 Active';
-    
+
+    const status = !gift.is_active ? '❌ Inactive' :
+      gift.expires_at && new Date(gift.expires_at) < new Date() ? '⏰ Expired' :
+        gift.current_uses >= gift.max_uses ? '✅ Fully Used' : '🟢 Active';
+
     const expiryInfo = gift.expires_at ? `📅 ${new Date(gift.expires_at).toLocaleDateString()}` : '🚫 No expiry';
-    
+
     await ctx.editMessageText(
       `✏️ *Edit Gift Code*\n\n` +
       `🎁 *Code:* \`${gift.code}\`\n` +
@@ -806,7 +917,7 @@ class AdminBotService {
 
   private async confirmGiftCodeDelete(ctx: any, giftId: number) {
     const gift = await db.getGiftCodeById(giftId);
-    
+
     await ctx.editMessageText(
       `⚠️ *Delete Gift Code*\n\n` +
       `Are you sure you want to delete this gift code?\n\n` +
@@ -846,7 +957,7 @@ class AdminBotService {
     try {
       const gift = await db.getGiftCodeById(giftId);
       const success = await db.updateGiftCode(giftId, { is_active: !gift.is_active });
-      
+
       if (success) {
         await ctx.answerCbQuery(`✅ Gift code ${gift.is_active ? 'deactivated' : 'activated'}!`);
         await this.startGiftCodeEdit(ctx, giftId);
@@ -857,98 +968,99 @@ class AdminBotService {
       await ctx.answerCbQuery(`❌ Error: ${error.message}`);
     }
   }
-private async showGiftCodeUsages(ctx: any, giftId: number) {
-  try {
-    const gift = await db.getGiftCodeById(giftId);
-    const usages = await db.getGiftCodeUsages(giftId);
-    
-    if (!gift) {
-      await ctx.editMessageText('❌ Gift code not found', {
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [
-            [Markup.button.callback('🔙 Back', 'gift_codes_list')]
-          ]
-        }
-      });
-      return;
-    }
-    
-    if (usages.length === 0) {
-      await ctx.editMessageText(
-        `📊 *Gift Code Usages*\n\n` +
-        `🎁 *Code:* \`${gift.code}\`\n` +
-        `💰 *Amount:* ${gift.amount.toLocaleString()} IRR\n` +
-        `📊 *Uses:* ${gift.current_uses}/${gift.max_uses}\n\n` +
-        `📭 *No usage records found*`,
-        {
+  private async showGiftCodeUsages(ctx: any, giftId: number) {
+    try {
+      const gift = await db.getGiftCodeById(giftId);
+      const usages = await db.getGiftCodeUsages(giftId);
+
+      if (!gift) {
+        await ctx.editMessageText('❌ Gift code not found', {
           parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [
-              [Markup.button.callback('🔙 Back', `gift_code_edit_${giftId}`)]
+              [Markup.button.callback('🔙 Back', 'gift_codes_list')]
             ]
           }
-        }
-      );
-      return;
-    }
-
-    let message = `📊 *Gift Code Usages*\n\n`;
-    message += `🎁 *Code:* \`${gift.code}\`\n`;
-    message += `💰 *Amount:* ${gift.amount.toLocaleString()} IRR\n`;
-    message += `📊 *Total Uses:* ${gift.current_uses}/${gift.max_uses}\n`;
-    message += `💵 *Total Redeemed:* ${(gift.amount * gift.current_uses).toLocaleString()} IRR\n\n`;
-    message += `*Recent Usages:*\n`;
-
-    usages.slice(0, 10).forEach((u: any, index: number) => {
-      message += `${index + 1}. 👤 ${u.first_name || 'Unknown'} (@${u.username || 'no username'})\n`;
-      message += `   💰 +${gift.amount.toLocaleString()} IRR\n`; // Use gift.amount instead of u.amount_received
-      message += `   📅 ${new Date(u.redeemed_at).toLocaleString()}\n\n`;
-    });
-
-    if (usages.length > 10) {
-      message += `\n*... and ${usages.length - 10} more*`;
-    }
-const currentText = (ctx.callbackQuery.message as any).text;
-    if (currentText === message) {
-      await ctx.answerCbQuery('📊 No new updates');
-      return; // Don't edit if same content
-    }
-    
-    await ctx.editMessageText(message, {
-      parse_mode: 'Markdown',
-      reply_markup: {
-        inline_keyboard: [
-          [Markup.button.callback('🔄 Refresh', `gift_code_usages_${giftId}`)],
-          [Markup.button.callback('🔙 Back', `gift_code_edit_${giftId}`)]
-        ]
+        });
+        return;
       }
-    });
-    
-    await ctx.answerCbQuery(); // Acknowledge the callback
-    
-  } catch (error: any) {
-    // Handle "message not modified" error
-    if (error.message?.includes('message is not modified')) {
-      await ctx.answerCbQuery('📊 No changes to display');
-    } else {
-      console.error('Error in showGiftCodeUsages:', error);
-      await ctx.answerCbQuery('❌ Error loading data');
+
+      if (usages.length === 0) {
+        await ctx.editMessageText(
+          `📊 *Gift Code Usages*\n\n` +
+          `🎁 *Code:* \`${gift.code}\`\n` +
+          `💰 *Amount:* ${gift.amount.toLocaleString()} IRR\n` +
+          `📊 *Uses:* ${gift.current_uses}/${gift.max_uses}\n\n` +
+          `📭 *No usage records found*`,
+          {
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [Markup.button.callback('🔙 Back', `gift_code_edit_${giftId}`)]
+              ]
+            }
+          }
+        );
+        return;
+      }
+
+      let message = `📊 *Gift Code Usages*\n\n`;
+      message += `🎁 *Code:* \`${gift.code}\`\n`;
+      message += `💰 *Amount:* ${gift.amount.toLocaleString()} IRR\n`;
+      message += `📊 *Total Uses:* ${gift.current_uses}/${gift.max_uses}\n`;
+      message += `💵 *Total Redeemed:* ${(gift.amount * gift.current_uses).toLocaleString()} IRR\n\n`;
+      message += `*Recent Usages:*\n`;
+
+      usages.slice(0, 10).forEach((u: any, index: number) => {
+        message += `${index + 1}. 👤 ${u.first_name || 'Unknown'} (@${u.username || 'no username'})\n`;
+        message += `   💰 +${gift.amount.toLocaleString()} IRR\n`; // Use gift.amount instead of u.amount_received
+        message += `   📅 ${new Date(u.redeemed_at).toLocaleString()}\n\n`;
+      });
+
+      if (usages.length > 10) {
+        message += `\n*... and ${usages.length - 10} more*`;
+      }
+      const currentText = (ctx.callbackQuery.message as any).text;
+      if (currentText === message) {
+        await ctx.answerCbQuery('📊 No new updates');
+        return; // Don't edit if same content
+      }
+
+      await ctx.editMessageText(message, {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [Markup.button.callback('🔄 Refresh', `gift_code_usages_${giftId}`)],
+            [Markup.button.callback('🔙 Back', `gift_code_edit_${giftId}`)]
+          ]
+        }
+      });
+
+      await ctx.answerCbQuery(); // Acknowledge the callback
+
+    } catch (error: any) {
+      // Handle "message not modified" error
+      if (error.message?.includes('message is not modified')) {
+        await ctx.answerCbQuery('📊 No changes to display');
+      } else {
+        console.error('Error in showGiftCodeUsages:', error);
+        await ctx.answerCbQuery('❌ Error loading data');
+      }
     }
-  }}
-  
+  }
+
   private async generateRandomGiftCode(ctx: any) {
     try {
       const code = await db.generateRandomGiftCode();
-      
+
       // Pre-fill the creation form with random code
       const userId = ctx.from.id;
       const session = this.getSession(userId);
-      
+
       if (session.currentAction === 'create_gift' && session.step === 1) {
         session.currentItem.code = code;
         session.step = 2;
-        
+
         await ctx.editMessageText(
           '✅ *Random Code Generated*\n\n' +
           `🎁 *Code:* \`${code}\`\n\n` +
@@ -992,17 +1104,59 @@ const currentText = (ctx.callbackQuery.message as any).text;
 
 
   // ================ MULTI-STEP HANDLERS ================
-  private async handleMultiStep(ctx: Context, session: SessionState, text: string) {
-    if (session.currentAction === 'create_service') {
-      await this.handleCreateServiceStep(ctx, session, text);
-    } else if (session.currentAction === 'create_server') {
-      await this.handleCreateServerStep(ctx, session, text);
-    } else if (session.currentAction === 'create_gift') {
-      await this.handleCreateGiftStep(ctx, session, text);
-    } else if (session.currentAction === 'edit_gift') {
-      await this.handleEditGiftStep(ctx, session, text);
-    }
+private async handleMultiStep(ctx: Context, session: SessionState, text: string) {
+  if (session.currentAction === 'create_service') {
+    await this.handleCreateServiceStep(ctx, session, text);
+  } else if (session.currentAction === 'create_server') {
+    await this.handleCreateServerStep(ctx, session, text);
+  } else if (session.currentAction === 'create_gift') {
+    await this.handleCreateGiftStep(ctx, session, text);
+  } else if (session.currentAction === 'edit_gift') {
+    await this.handleEditGiftStep(ctx, session, text);
+  } else if (session.currentAction === 'edit_server_field') {
+    await this.handleServerFieldEdit(ctx, session, text);
   }
+}
+
+private async handleServerFieldEdit(ctx: Context, session: SessionState, text: string) {
+  const { serverId, field } = session.currentItem;
+
+  try {
+    let value: any = text.trim();
+
+    if (['api_port', 'xray_port', 'max_users'].includes(field)) {
+      value = parseInt(value);
+      if (isNaN(value) || value <= 0) {
+        await ctx.reply('❌ Please enter a valid positive number.');
+        return;
+      }
+    }
+
+    if (field === 'status' && !['active', 'maintenance', 'offline', 'decommissioned'].includes(value)) {
+      await ctx.reply('❌ Status must be: active, maintenance, offline, or decommissioned');
+      return;
+    }
+
+    await db.updateServer(serverId, { [field]: value });
+
+    session.currentAction = null;
+    session.currentItem = null;
+    session.step = 0;
+
+    if (field === 'config_format') {
+      await ctx.reply('🔄 Config format updated, rebuilding all user config links...');
+      await this.updateUserConfigs();
+      await ctx.reply('✅ All user config links updated.');
+    } else {
+      await ctx.reply(`✅ ${field} updated successfully.`);
+    }
+
+    await this.startServerEdit(ctx as any, serverId);
+
+  } catch (error: any) {
+    await ctx.reply(`❌ Error updating ${field}: ${error.message}`);
+  }
+}
 
   private async handleCreateGiftStep(ctx: Context, session: SessionState, text: string) {
     switch (session.step) {
@@ -1021,7 +1175,7 @@ const currentText = (ctx.callbackQuery.message as any).text;
           { parse_mode: 'Markdown' }
         );
         break;
-        
+
       case 2: // Amount
         const amount = parseFloat(text.replace(/,/g, ''));
         if (isNaN(amount) || amount <= 0) {
@@ -1038,7 +1192,7 @@ const currentText = (ctx.callbackQuery.message as any).text;
           { parse_mode: 'Markdown' }
         );
         break;
-        
+
       case 3: // Max Uses
         const maxUses = parseInt(text);
         if (isNaN(maxUses) || maxUses <= 0) {
@@ -1054,7 +1208,7 @@ const currentText = (ctx.callbackQuery.message as any).text;
           { parse_mode: 'Markdown' }
         );
         break;
-        
+
       case 4: // Expiry
         const days = parseInt(text);
         if (days > 0) {
@@ -1072,7 +1226,7 @@ const currentText = (ctx.callbackQuery.message as any).text;
           { parse_mode: 'Markdown' }
         );
         break;
-        
+
       case 5: // Min Balance
         const minBalance = parseFloat(text.replace(/,/g, ''));
         session.currentItem.min_balance_required = isNaN(minBalance) ? 0 : minBalance;
@@ -1084,11 +1238,11 @@ const currentText = (ctx.callbackQuery.message as any).text;
           { parse_mode: 'Markdown' }
         );
         break;
-        
+
       case 6: // First purchase only
         session.currentItem.first_purchase_only = text.toLowerCase() === 'yes' || text.toLowerCase() === 'y';
         session.currentItem.created_by = ctx.from!.id;
-        
+
         try {
           const gift = await db.createGiftCode(session.currentItem);
           await ctx.reply(
@@ -1118,17 +1272,6 @@ const currentText = (ctx.callbackQuery.message as any).text;
     await this.startGiftCodeEdit(ctx as any, session.currentItem.id);
   }
 
-  // ... (rest of your existing methods)
-  // Include all the existing methods like handleCreateServiceStep, handleCreateServerStep, etc.
-
-  // ================ MULTI-STEP HANDLERS ================
-  // private async handleMultiStep(ctx: Context, session: SessionState, text: string) {
-  //   if (session.currentAction === 'create_service') {
-  //     await this.handleCreateServiceStep(ctx, session, text);
-  //   } else if (session.currentAction === 'create_server') {
-  //     await this.handleCreateServerStep(ctx, session, text);
-  //   }
-  // }
 
   private async handleCreateServiceStep(ctx: Context, session: SessionState, text: string) {
     switch (session.step) {
@@ -1176,7 +1319,7 @@ const currentText = (ctx.callbackQuery.message as any).text;
         const sortOrder = parseInt(text);
         session.currentItem.sort_order = isNaN(sortOrder) ? 0 : sortOrder;
         session.currentItem.is_active = true;
-        
+
         try {
           const service = await db.createService(session.currentItem);
           await ctx.reply(AdminMessages.serviceCreated(service), {
@@ -1192,6 +1335,113 @@ const currentText = (ctx.callbackQuery.message as any).text;
         break;
     }
   }
+
+
+  async updateUserConfigs(): Promise<void> {
+    try {
+      const servers = await db.getAllActiveServers();
+      const userConfigs = await db.query(
+        `SELECT id, user_uuid, config_name FROM user_configs 
+       WHERE status IN ('active', 'test')`
+      );
+
+      for (const config of userConfigs.rows) {
+        const links = servers.map(server =>
+          server.config_format
+            .replace('USER_UUID', config.user_uuid)
+            .replace('USER_EMAIL', config.config_name)
+        );
+
+        await db.query(
+          `UPDATE user_configs SET vless_link = $1, updated_at = NOW() WHERE id = $2`,
+          [links.join(','), config.id]
+        );
+      }
+
+      console.log(`✅ Updated vless links for ${userConfigs.rows.length} user configs`);
+    } catch (error: any) {
+      console.error('Error updating user configs:', error.message);
+      throw error;
+    }
+  }
+
+
+
+  // private async handleCreateServerStep(ctx: Context, session: SessionState, text: string) {
+  //   switch (session.step) {
+  //     case 1: // Name
+  //       session.currentItem.name = text;
+  //       session.step = 2;
+  //       await ctx.reply(AdminMessages.createServerStep2());
+  //       break;
+  //     case 2: // Domain
+  //       session.currentItem.domain = text;
+  //       session.step = 3;
+  //       await ctx.reply(AdminMessages.createServerStep3());
+  //       break;
+  //     case 3: // IP
+  //       session.currentItem.ip = text;
+  //       session.step = 4;
+  //       await ctx.reply(AdminMessages.createServerStep4());
+  //       break;
+  //     case 4: // API Port
+  //       const apiPort = parseInt(text);
+  //       session.currentItem.api_port = isNaN(apiPort) ? 5000 : apiPort;
+  //       session.step = 5;
+  //       await ctx.reply(AdminMessages.createServerStep5());
+  //       break;
+  //     case 5: // Xray Port
+  //       const xrayPort = parseInt(text);
+  //       session.currentItem.xray_port = isNaN(xrayPort) ? 8445 : xrayPort;
+  //       session.step = 6;
+  //       await ctx.reply(AdminMessages.createServerStep6());
+  //       break;
+  //     case 6: // API Token
+  //       session.currentItem.api_token = text;
+  //       session.step = 7;
+  //       await ctx.reply(AdminMessages.createServerStep7());
+  //       break;
+  //     case 7: // Max Users
+  //       const maxUsers = parseInt(text);
+  //       session.currentItem.max_users = isNaN(maxUsers) ? 100 : maxUsers;
+  //       session.step = 8;
+  //       await ctx.reply(AdminMessages.createServerStep8());
+  //       break;
+  //     case 8: // Location
+  //       session.currentItem.location = text;
+  //       session.step = 9;
+  //       await ctx.reply(AdminMessages.createServerStep9());
+  //       break;
+  //     case 9: // Status
+  //       session.currentItem.status = text.toLowerCase();
+  //       session.step = 10;
+  //       await ctx.reply(AdminMessages.createServerStep10());
+  //       break;
+  //     case 10: // CPU Cores
+  //       const cpuCores = parseInt(text);
+  //       session.currentItem.cpu_cores = isNaN(cpuCores) ? 2 : cpuCores;
+  //       session.step = 11;
+  //       await ctx.reply(AdminMessages.createServerStep11());
+  //       break;
+  //     case 11: // RAM GB
+  //       const ramGb = parseInt(text);
+  //       session.currentItem.ram_gb = isNaN(ramGb) ? 4 : ramGb;
+
+  //       try {
+  //         const server = await db.createServer(session.currentItem);
+  //         await ctx.reply(AdminMessages.serverCreated(server), {
+  //           parse_mode: 'MarkdownV2'
+  //         });
+  //         session.currentAction = null;
+  //         session.currentItem = null;
+  //         session.step = 0;
+  //         await this.showServersMenu(ctx);
+  //       } catch (error: any) {
+  //         await ctx.reply(AdminMessages.error(error.message));
+  //       }
+  //       break;
+  //   }
+  // }
 
   private async handleCreateServerStep(ctx: Context, session: SessionState, text: string) {
     switch (session.step) {
@@ -1243,27 +1493,60 @@ const currentText = (ctx.callbackQuery.message as any).text;
         session.step = 10;
         await ctx.reply(AdminMessages.createServerStep10());
         break;
-      case 10: // CPU Cores
-        const cpuCores = parseInt(text);
-        session.currentItem.cpu_cores = isNaN(cpuCores) ? 2 : cpuCores;
+      case 10: // Config Format  ← NEW STEP
+        session.currentItem.config_format = text.trim();
         session.step = 11;
         await ctx.reply(AdminMessages.createServerStep11());
         break;
-      case 11: // RAM GB
+      case 11: // CPU Cores
+        const cpuCores = parseInt(text);
+        session.currentItem.cpu_cores = isNaN(cpuCores) ? 2 : cpuCores;
+        session.step = 12;
+        await ctx.reply(AdminMessages.createServerStep12());
+        break;
+      case 12: // RAM GB
         const ramGb = parseInt(text);
         session.currentItem.ram_gb = isNaN(ramGb) ? 4 : ramGb;
-        
+
         try {
+          // 1. Create server in DB
           const server = await db.createServer(session.currentItem);
+          await ctx.reply(`✅ Server created in database, now syncing clients...`);
+
+          // 2. Get clients from an existing server
+          const existingServers = await db.getAllActiveServers();
+          const sourceServer = existingServers.find(s => s.id !== server.id);
+
+          if (sourceServer) {
+            const sourceConfig = await v2rayServices.getConfig(sourceServer);
+            const clients = sourceConfig.inbounds[0].settings.clients || [];
+
+            // 3. Push clients to new server
+            const newServerConfig = await v2rayServices.getConfig(server);
+            newServerConfig.inbounds[0].settings.clients = clients;
+            await v2rayServices.updateConfig(server, newServerConfig);
+            await v2rayServices.restartService(server);
+
+            await ctx.reply(`✅ Synced ${clients.length} clients to new server, restarting...`);
+          } else {
+            await ctx.reply(`⚠️ No existing servers to sync clients from, skipping sync.`);
+          }
+
+          // 4. Update all user_configs vless links to include new server
+          await this.updateUserConfigs();
+          await ctx.reply(`✅ All user config links updated to include new server.`);
+
           await ctx.reply(AdminMessages.serverCreated(server), {
             parse_mode: 'MarkdownV2'
           });
+
           session.currentAction = null;
           session.currentItem = null;
           session.step = 0;
           await this.showServersMenu(ctx);
+
         } catch (error: any) {
-          await ctx.reply(AdminMessages.error(error.message));
+          await ctx.reply(`❌ Error: ${error.message}`);
         }
         break;
     }
@@ -1273,7 +1556,7 @@ const currentText = (ctx.callbackQuery.message as any).text;
   launch() {
     this.bot.launch();
     console.log('🤖 Admin Bot started successfully with Gift Code CRUD');
-    
+
     // Enable graceful stop
     process.once('SIGINT', () => this.bot.stop('SIGINT'));
     process.once('SIGTERM', () => this.bot.stop('SIGTERM'));

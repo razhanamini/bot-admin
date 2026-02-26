@@ -205,3 +205,24 @@ export interface VlessLinkSet {
     qrCodeWindows?: string;
 }
 
+
+
+
+export interface Server {
+    id: number;
+    name: string;
+    domain: string;
+    ip: string;
+    api_port: number;
+    xray_port: number;
+    api_token: string;
+    max_users: number;
+    current_users: number;
+    status: 'active' | 'maintenance' | 'offline';
+    location: string;
+    created_at: Date;
+    updated_at: Date;
+    last_checked_at?: Date;
+    is_active: boolean;
+    config_format: string;
+}

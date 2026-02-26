@@ -180,87 +180,53 @@ Click the button below to add your first server.`;
     return message;
   }
 
-  static createServerStep1(): string {
-    return `➕ *Add New Server - Step 1/11*
+static createServerStep1(): string {
+  return `➕ *Add New Server - Step 1/12*\n\nPlease enter the *server name*:\nExample: Frankfurt-1`;
+}
 
-Please enter the *server name*:
-Example: Frankfurt-1`;
-  }
+static createServerStep2(): string {
+  return `✅ Step 2/12\n\nPlease enter the *server domain*:\nExample: de-v1-gwez.gemminie.xyz`;
+}
 
-  static createServerStep2(): string {
-    return `✅ Step 2/11
+static createServerStep3(): string {
+  return `✅ Step 3/12\n\nPlease enter the *server IP address*:\nExample: 172.86.95.72`;
+}
 
-Please enter the *server domain*:
-Example: de-v1-gwez.gemminie.xyz`;
-  }
+static createServerStep4(): string {
+  return `✅ Step 4/12\n\nPlease enter the *API port*:\n(Default: 5000)\nExample: 5000`;
+}
 
-  static createServerStep3(): string {
-    return `✅ Step 3/11
+static createServerStep5(): string {
+  return `✅ Step 5/12\n\nPlease enter the *Xray port*:\n(Default: 8445)\nExample: 8445`;
+}
 
-Please enter the *server IP address*:
-Example: 172.86.95.72`;
-  }
+static createServerStep6(): string {
+  return `✅ Step 6/12\n\nPlease enter the *API token*:`;
+}
 
-  static createServerStep4(): string {
-    return `✅ Step 4/11
+static createServerStep7(): string {
+  return `✅ Step 7/12\n\nPlease enter the *maximum users*:\n(Default: 100)\nExample: 200`;
+}
 
-Please enter the *API port*:
-(Default: 5000)
-Example: 5000`;
-  }
+static createServerStep8(): string {
+  return `✅ Step 8/12\n\nPlease enter the *server location*:\nExample: Germany`;
+}
 
-  static createServerStep5(): string {
-    return `✅ Step 5/11
+static createServerStep9(): string {
+  return `✅ Step 9/12\n\nPlease enter the *server status*:\n(active, maintenance, offline)\nExample: active`;
+}
 
-Please enter the *Xray port*:
-(Default: 8445)
-Example: 8445`;
-  }
+static createServerStep10(): string {
+  return `✅ Step 10/12\n\nPlease paste the *config format* for this server:\n\nExample:\n\`vless://USER_UUID@domain:port?security=reality&...#USER_EMAIL\``;
+}
 
-  static createServerStep6(): string {
-    return `✅ Step 6/11
+static createServerStep11(): string {
+  return `✅ Step 11/12\n\nPlease enter the *CPU cores*:\n(Default: 2)\nExample: 4`;
+}
 
-Please enter the *API token*:`;
-  }
-
-  static createServerStep7(): string {
-    return `✅ Step 7/11
-
-Please enter the *maximum users*:
-(Default: 100)
-Example: 200`;
-  }
-
-  static createServerStep8(): string {
-    return `✅ Step 8/11
-
-Please enter the *server location*:
-Example: Germany`;
-  }
-
-  static createServerStep9(): string {
-    return `✅ Step 9/11
-
-Please enter the *server status*:
-(active, maintenance, offline)
-Example: active`;
-  }
-
-  static createServerStep10(): string {
-    return `✅ Step 10/11
-
-Please enter the *CPU cores*:
-(Default: 2)
-Example: 4`;
-  }
-
-  static createServerStep11(): string {
-    return `✅ Step 11/11
-
-Please enter the *RAM* in GB:
-(Default: 4)
-Example: 8`;
-  }
+static createServerStep12(): string {
+  return `✅ Step 12/12\n\nPlease enter the *RAM* in GB:\n(Default: 4)\nExample: 8`;
+}
 
   static serverCreated(server: any): string {
     return `✅ *Server added successfully*
@@ -369,6 +335,7 @@ ${this.bold('📊 Users:')} ${server.current_users}/${server.max_users}
 
   return message;
 }
+
 
 
   static paymentsList(payments: any[], stats: any): string {

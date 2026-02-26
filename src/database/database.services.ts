@@ -1,5 +1,6 @@
 import { Pool } from 'pg';
 import dotenv from 'dotenv';
+import { Server } from '../types/v2ray.type';
 
 dotenv.config();
 
@@ -47,6 +48,18 @@ class DatabaseService {
     );
     return result.rows[0];
   }
+
+    async getAllActiveServers(): Promise<Server[]> {
+    const result = await this.query(
+      `SELECT * FROM servers 
+         WHERE status = 'active' 
+         AND is_active = true
+         ORDER BY id ASC`,
+      []
+    );
+    return result.rows;
+  }
+
 
   async updateService(id: number, service: any): Promise<any> {
     const { name, description, price, duration_days, data_limit_gb, is_active, sort_order } = service;
@@ -131,23 +144,13 @@ class DatabaseService {
     return result.rows[0];
   }
 
-  async deleteServer(id: number): Promise<boolean> {
-    // Check if server has any active configs
-    const checkResult = await this.query(
-      'SELECT COUNT(*) FROM user_configs WHERE server_id = $1 AND status IN ($2, $3)',
-      [id, 'active', 'test']
-    );
-    
-    if (parseInt(checkResult.rows[0].count) > 0) {
-      throw new Error('Cannot delete server with active users');
-    }
-
-    const result = await this.query(
-      'DELETE FROM servers WHERE id = $1',
-      [id]
-    );
-    return result.rowCount !== null && result.rowCount > 0;
-  }
+async deleteServer(id: number): Promise<boolean> {
+  const result = await this.query(
+    'DELETE FROM servers WHERE id = $1',
+    [id]
+  );
+  return result.rowCount !== null && result.rowCount > 0;
+}
 
   // ================ MONITORING ================
   async getUsersStats(): Promise<any> {
