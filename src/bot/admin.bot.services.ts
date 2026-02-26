@@ -187,7 +187,9 @@ class AdminBotService {
         inline_keyboard: [
           [Markup.button.callback('📋 List All Servers', 'servers_list')],
           [Markup.button.callback('➕ Add New Server', 'server_create')],
-          [Markup.button.callback('🔙 Back to Main Menu', 'back_to_main')]
+          [Markup.button.callback('🔄 Update User Configs', 'update_user_configs')],
+          [Markup.button.callback('🔙 Back to Main Menu', 'back_to_main')],
+
         ]
       }
     });
@@ -531,6 +533,16 @@ class AdminBotService {
   private setupCallbacks() {
 
 
+    this.bot.action(/^update_user_configs$/, async (ctx) => {
+      await ctx.answerCbQuery('🔄 Updating...');
+      await ctx.reply('🔄 Rebuilding all user config links...');
+      try {
+        await this.updateUserConfigs();
+        await ctx.reply('✅ All user config links updated successfully.');
+      } catch (error: any) {
+        await ctx.reply(`❌ Error: ${error.message}`);
+      }
+    });
 
     this.bot.action(/^esf\|(.+)\|(\d+)$/, async (ctx) => {
       const field = ctx.match[1];
@@ -1104,59 +1116,59 @@ class AdminBotService {
 
 
   // ================ MULTI-STEP HANDLERS ================
-private async handleMultiStep(ctx: Context, session: SessionState, text: string) {
-  if (session.currentAction === 'create_service') {
-    await this.handleCreateServiceStep(ctx, session, text);
-  } else if (session.currentAction === 'create_server') {
-    await this.handleCreateServerStep(ctx, session, text);
-  } else if (session.currentAction === 'create_gift') {
-    await this.handleCreateGiftStep(ctx, session, text);
-  } else if (session.currentAction === 'edit_gift') {
-    await this.handleEditGiftStep(ctx, session, text);
-  } else if (session.currentAction === 'edit_server_field') {
-    await this.handleServerFieldEdit(ctx, session, text);
+  private async handleMultiStep(ctx: Context, session: SessionState, text: string) {
+    if (session.currentAction === 'create_service') {
+      await this.handleCreateServiceStep(ctx, session, text);
+    } else if (session.currentAction === 'create_server') {
+      await this.handleCreateServerStep(ctx, session, text);
+    } else if (session.currentAction === 'create_gift') {
+      await this.handleCreateGiftStep(ctx, session, text);
+    } else if (session.currentAction === 'edit_gift') {
+      await this.handleEditGiftStep(ctx, session, text);
+    } else if (session.currentAction === 'edit_server_field') {
+      await this.handleServerFieldEdit(ctx, session, text);
+    }
   }
-}
 
-private async handleServerFieldEdit(ctx: Context, session: SessionState, text: string) {
-  const { serverId, field } = session.currentItem;
+  private async handleServerFieldEdit(ctx: Context, session: SessionState, text: string) {
+    const { serverId, field } = session.currentItem;
 
-  try {
-    let value: any = text.trim();
+    try {
+      let value: any = text.trim();
 
-    if (['api_port', 'xray_port', 'max_users'].includes(field)) {
-      value = parseInt(value);
-      if (isNaN(value) || value <= 0) {
-        await ctx.reply('❌ Please enter a valid positive number.');
+      if (['api_port', 'xray_port', 'max_users'].includes(field)) {
+        value = parseInt(value);
+        if (isNaN(value) || value <= 0) {
+          await ctx.reply('❌ Please enter a valid positive number.');
+          return;
+        }
+      }
+
+      if (field === 'status' && !['active', 'maintenance', 'offline', 'decommissioned'].includes(value)) {
+        await ctx.reply('❌ Status must be: active, maintenance, offline, or decommissioned');
         return;
       }
+
+      await db.updateServer(serverId, { [field]: value });
+
+      session.currentAction = null;
+      session.currentItem = null;
+      session.step = 0;
+
+      if (field === 'config_format') {
+        await ctx.reply('🔄 Config format updated, rebuilding all user config links...');
+        await this.updateUserConfigs();
+        await ctx.reply('✅ All user config links updated.');
+      } else {
+        await ctx.reply(`✅ ${field} updated successfully.`);
+      }
+
+      await this.startServerEdit(ctx as any, serverId);
+
+    } catch (error: any) {
+      await ctx.reply(`❌ Error updating ${field}: ${error.message}`);
     }
-
-    if (field === 'status' && !['active', 'maintenance', 'offline', 'decommissioned'].includes(value)) {
-      await ctx.reply('❌ Status must be: active, maintenance, offline, or decommissioned');
-      return;
-    }
-
-    await db.updateServer(serverId, { [field]: value });
-
-    session.currentAction = null;
-    session.currentItem = null;
-    session.step = 0;
-
-    if (field === 'config_format') {
-      await ctx.reply('🔄 Config format updated, rebuilding all user config links...');
-      await this.updateUserConfigs();
-      await ctx.reply('✅ All user config links updated.');
-    } else {
-      await ctx.reply(`✅ ${field} updated successfully.`);
-    }
-
-    await this.startServerEdit(ctx as any, serverId);
-
-  } catch (error: any) {
-    await ctx.reply(`❌ Error updating ${field}: ${error.message}`);
   }
-}
 
   private async handleCreateGiftStep(ctx: Context, session: SessionState, text: string) {
     switch (session.step) {
