@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 import dotenv from 'dotenv';
-import { Server } from '../types/v2ray.type';
+import { ReferralSettings, Server } from '../types/v2ray.type';
 
 dotenv.config();
 
@@ -239,6 +239,23 @@ async getExpiringConfigs(days: number = 3): Promise<any[]> {
     [`${days} days`]
   );
   return result.rows;
+}
+
+
+async getReferralSettings(): Promise<ReferralSettings> {
+  const result = await this.query(`SELECT * FROM referral_settings LIMIT 1`);
+  return result.rows[0];
+}
+
+
+async updateReferralSettings(fields: Partial<ReferralSettings>): Promise<void> {
+  const keys = Object.keys(fields);
+  const values = Object.values(fields);
+  const setClause = keys.map((k, i) => `${k} = $${i + 1}`).join(', ');
+  await this.query(
+    `UPDATE referral_settings SET ${setClause}, updated_at = NOW()`,
+    values
+  );
 }
 
 // ================ GIFT CODES CRUD ================

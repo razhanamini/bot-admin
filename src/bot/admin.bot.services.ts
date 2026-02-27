@@ -70,7 +70,8 @@ class AdminBotService {
           keyboard: [
             ['📦 Services', '🖥️ Servers'],
             ['📊 Statistics', '👥 Users'],
-            ['💰 Payments', '🎁 Gift Codes']
+            ['💰 Payments', '🎁 Gift Codes'],
+            ['🤝 Referral Settings']   // ← add
           ],
           resize_keyboard: true
         }
@@ -196,6 +197,11 @@ class AdminBotService {
   }
 
   private setupHandlers() {
+    // refferal 
+    this.bot.hears('🤝 Referral Settings', async (ctx) => {
+      await this.showReferralSettings(ctx);
+    });
+
     // Main menu buttons
     this.bot.hears('📦 Services', async (ctx) => {
       await this.showServicesMenu(ctx);
@@ -246,8 +252,61 @@ class AdminBotService {
       // Handle multi-step operations
       if (session.currentAction) {
         await this.handleMultiStep(ctx, session, text);
+      } else if (session.currentAction === 'edit_referral_field') {
+        await this.handleReferralFieldEdit(ctx, session, text);
       }
+
     });
+  }
+
+  private async handleReferralFieldEdit(ctx: Context, session: SessionState, text: string) {
+  const { field } = session.currentItem;
+  try {
+    const value = parseFloat(text);
+    if (isNaN(value) || value <= 0) {
+      await ctx.reply('❌ Please enter a valid positive number.');
+      return;
+    }
+    await db.updateReferralSettings({ [field]: value });
+    session.currentAction = null;
+    session.currentItem = null;
+    session.step = 0;
+    await ctx.reply(`✅ ${field} updated to ${value}`);
+    await this.showReferralSettings(ctx);
+  } catch (error: any) {
+    await ctx.reply(`❌ Error: ${error.message}`);
+  }
+}
+
+
+  private async showReferralSettings(ctx: Context) {
+    try {
+      const settings = await db.getReferralSettings();
+      await ctx.reply(
+        `🤝 *Referral Program Settings*\n\n` +
+        `📌 Status: ${settings.is_enabled ? '✅ Enabled' : '❌ Disabled'}\n` +
+        `💰 Commission: ${settings.commission_percent}%\n` +
+        `💸 Min Withdrawal: ${Math.floor(settings.min_withdrawal_amount)} IRR\n` +
+        `👥 Max Referrals/User: ${settings.max_referrals_per_user}`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [Markup.button.callback(
+                settings.is_enabled ? '❌ Disable Program' : '✅ Enable Program',
+                'referral_toggle'
+              )],
+              [Markup.button.callback('💰 Edit Commission %', 'referral_edit_commission')],
+              [Markup.button.callback('💸 Edit Min Withdrawal', 'referral_edit_min_withdrawal')],
+              [Markup.button.callback('👥 Edit Max Referrals', 'referral_edit_max_referrals')],
+              [Markup.button.callback('🔙 Back to Main Menu', 'back_to_main')]
+            ]
+          }
+        }
+      );
+    } catch (error: any) {
+      await ctx.reply(`❌ Error: ${error.message}`);
+    }
   }
 
 
@@ -531,6 +590,45 @@ class AdminBotService {
 
 
   private setupCallbacks() {
+
+    // refferal
+    this.bot.action('referral_toggle', async (ctx) => {
+      const settings = await db.getReferralSettings();
+      await db.updateReferralSettings({ is_enabled: !settings.is_enabled });
+      await ctx.answerCbQuery(`✅ Program ${settings.is_enabled ? 'disabled' : 'enabled'}`);
+      await ctx.deleteMessage();
+      await this.showReferralSettings(ctx);
+    });
+
+    this.bot.action('referral_edit_commission', async (ctx) => {
+      const userId = ctx.from!.id;
+      const session = this.getSession(userId);
+      session.currentAction = 'edit_referral_field';
+      session.currentItem = { field: 'commission_percent' };
+      session.step = 1;
+      await ctx.answerCbQuery();
+      await ctx.editMessageText('💰 Enter new commission percentage (e.g. 60):');
+    });
+
+    this.bot.action('referral_edit_min_withdrawal', async (ctx) => {
+      const userId = ctx.from!.id;
+      const session = this.getSession(userId);
+      session.currentAction = 'edit_referral_field';
+      session.currentItem = { field: 'min_withdrawal_amount' };
+      session.step = 1;
+      await ctx.answerCbQuery();
+      await ctx.editMessageText('💸 Enter new minimum withdrawal amount in IRR (e.g. 100000):');
+    });
+
+    this.bot.action('referral_edit_max_referrals', async (ctx) => {
+      const userId = ctx.from!.id;
+      const session = this.getSession(userId);
+      session.currentAction = 'edit_referral_field';
+      session.currentItem = { field: 'max_referrals_per_user' };
+      session.step = 1;
+      await ctx.answerCbQuery();
+      await ctx.editMessageText('👥 Enter new max referrals per user (e.g. 100):');
+    });
 
 
     this.bot.action(/^update_user_configs$/, async (ctx) => {
