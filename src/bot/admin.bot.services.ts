@@ -748,13 +748,27 @@ class AdminBotService {
       ? '***hidden***'
       : String(server[field] ?? 'not set');
 
+    // await ctx.editMessageText(
+    //   `✏️ *Edit ${fieldLabels[field] || field}*\n\n` +
+    //   `Current value: \`${currentValue}\`\n\n` +
+    //   `Enter new value:` +
+    //   (field === 'config_format' ? '\n\n_Paste full format with USER\\_UUID and USER\\_EMAIL placeholders_' : ''),
+    //   {
+    //     parse_mode: 'Markdown',
+    //     reply_markup: {
+    //       inline_keyboard: [
+    //         [Markup.button.callback('❌ Cancel', `server_edit_${serverId}`)]
+    //       ]
+    //     }
+    //   }
+    // );
     await ctx.editMessageText(
-      `✏️ *Edit ${fieldLabels[field] || field}*\n\n` +
-      `Current value: \`${currentValue}\`\n\n` +
+      `✏️ <b>Edit ${fieldLabels[field] || field}</b>\n\n` +
+      `Current value:\n<code>${currentValue}</code>\n\n` +
       `Enter new value:` +
-      (field === 'config_format' ? '\n\n_Paste full format with USER\\_UUID and USER\\_EMAIL placeholders_' : ''),
+      (field === 'config_format' ? '\n\n<i>Paste full format with USER_UUID and USER_EMAIL placeholders</i>' : ''),
       {
-        parse_mode: 'Markdown',
+        parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: [
             [Markup.button.callback('❌ Cancel', `server_edit_${serverId}`)]
