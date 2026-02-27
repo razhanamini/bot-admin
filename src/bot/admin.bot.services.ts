@@ -237,7 +237,6 @@ class AdminBotService {
       const session = this.getSession(userId);
       const text = ctx.message.text;
 
-      // Skip if it's a command or menu button
       if (text.startsWith('/') ||
         text === '📦 Services' ||
         text === '🖥️ Servers' ||
@@ -245,67 +244,65 @@ class AdminBotService {
         text === '👥 Users' ||
         text === '💰 Payments' ||
         text === '🎁 Gift Codes' ||
-        text === '🔙 Main Menu') {
+        text === '🔙 Main Menu' ||
+        text === '🤝 Referral Settings') {  // ← add this too
         return;
       }
 
-      // Handle multi-step operations
       if (session.currentAction) {
         await this.handleMultiStep(ctx, session, text);
-      } else if (session.currentAction === 'edit_referral_field') {
-        await this.handleReferralFieldEdit(ctx, session, text);
       }
-
     });
   }
 
   private async handleReferralFieldEdit(ctx: Context, session: SessionState, text: string) {
-  const { field } = session.currentItem;
-  try {
-    const value = parseFloat(text);
-    if (isNaN(value) || value <= 0) {
-      await ctx.reply('❌ Please enter a valid positive number.');
-      return;
+    const { field } = session.currentItem;
+    try {
+      const value = parseFloat(text);
+      if (isNaN(value) || value <= 0) {
+        await ctx.reply(this.escapeMarkdown('❌ Please enter a valid positive number.'), { parse_mode: 'MarkdownV2' });
+        return;
+      }
+      await db.updateReferralSettings({ [field]: value });
+      session.currentAction = null;
+      session.currentItem = null;
+      session.step = 0;
+      await ctx.reply(this.escapeMarkdown(`✅ ${field} updated to ${value}`), { parse_mode: 'MarkdownV2' });
+      await this.showReferralSettings(ctx);
+    } catch (error: any) {
+      await ctx.reply(this.escapeMarkdown(`❌ Error: ${error.message}`), { parse_mode: 'MarkdownV2' });
     }
-    await db.updateReferralSettings({ [field]: value });
-    session.currentAction = null;
-    session.currentItem = null;
-    session.step = 0;
-    await ctx.reply(`✅ ${field} updated to ${value}`);
-    await this.showReferralSettings(ctx);
-  } catch (error: any) {
-    await ctx.reply(`❌ Error: ${error.message}`);
   }
-}
 
 
   private async showReferralSettings(ctx: Context) {
     try {
       const settings = await db.getReferralSettings();
-      await ctx.reply(
-        `🤝 *Referral Program Settings*\n\n` +
+
+      const message =
+        `🤝 Referral Program Settings\n\n` +
         `📌 Status: ${settings.is_enabled ? '✅ Enabled' : '❌ Disabled'}\n` +
         `💰 Commission: ${settings.commission_percent}%\n` +
         `💸 Min Withdrawal: ${Math.floor(settings.min_withdrawal_amount)} IRR\n` +
-        `👥 Max Referrals/User: ${settings.max_referrals_per_user}`,
-        {
-          parse_mode: 'Markdown',
-          reply_markup: {
-            inline_keyboard: [
-              [Markup.button.callback(
-                settings.is_enabled ? '❌ Disable Program' : '✅ Enable Program',
-                'referral_toggle'
-              )],
-              [Markup.button.callback('💰 Edit Commission %', 'referral_edit_commission')],
-              [Markup.button.callback('💸 Edit Min Withdrawal', 'referral_edit_min_withdrawal')],
-              [Markup.button.callback('👥 Edit Max Referrals', 'referral_edit_max_referrals')],
-              [Markup.button.callback('🔙 Back to Main Menu', 'back_to_main')]
-            ]
-          }
+        `👥 Max Referrals/User: ${settings.max_referrals_per_user}`;
+
+      await ctx.reply(this.escapeMarkdown(message), {
+        parse_mode: 'MarkdownV2',
+        reply_markup: {
+          inline_keyboard: [
+            [Markup.button.callback(
+              settings.is_enabled ? '❌ Disable Program' : '✅ Enable Program',
+              'referral_toggle'
+            )],
+            [Markup.button.callback('💰 Edit Commission %', 'referral_edit_commission')],
+            [Markup.button.callback('💸 Edit Min Withdrawal', 'referral_edit_min_withdrawal')],
+            [Markup.button.callback('👥 Edit Max Referrals', 'referral_edit_max_referrals')],
+            [Markup.button.callback('🔙 Back to Main Menu', 'back_to_main')]
+          ]
         }
-      );
+      });
     } catch (error: any) {
-      await ctx.reply(`❌ Error: ${error.message}`);
+      await ctx.reply(this.escapeMarkdown(`❌ Error: ${error.message}`), { parse_mode: 'MarkdownV2' });
     }
   }
 
@@ -812,7 +809,8 @@ class AdminBotService {
         keyboard: [
           ['📦 Services', '🖥️ Servers'],
           ['📊 Statistics', '👥 Users'],
-          ['💰 Payments', '🎁 Gift Codes']
+          ['💰 Payments', '🎁 Gift Codes'],
+          ['🤝 Referral Settings']  // ← add
         ],
         resize_keyboard: true
       }
@@ -1239,6 +1237,8 @@ class AdminBotService {
       await this.handleEditGiftStep(ctx, session, text);
     } else if (session.currentAction === 'edit_server_field') {
       await this.handleServerFieldEdit(ctx, session, text);
+    } else if (session.currentAction === 'edit_referral_field') {  // ← add this
+      await this.handleReferralFieldEdit(ctx, session, text);
     }
   }
 
